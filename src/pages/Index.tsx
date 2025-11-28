@@ -7,9 +7,10 @@ import { AIAssistant } from "@/components/AIAssistant";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
 import { GamificationPanel } from "@/components/GamificationPanel";
 import { VoiceCommands } from "@/components/VoiceCommands";
+import { AdminDashboard } from "@/components/AdminDashboard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, ListChecks, LogOut } from "lucide-react";
+import { CheckCircle2, ListChecks, LogOut, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,6 +18,8 @@ const Index = () => {
   const [user, setUser] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
+  const [showAdminView, setShowAdminView] = useState(false);
 
   useEffect(() => {
     // Check auth status
@@ -35,8 +38,26 @@ const Index = () => {
   useEffect(() => {
     if (user) {
       loadTasks();
+      loadUserRole();
     }
   }, [user]);
+
+  const loadUserRole = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      setUserRole(data?.role || 'user');
+    } catch (error) {
+      console.error('Error loading user role:', error);
+      setUserRole('user');
+    }
+  };
 
   const loadTasks = async () => {
     try {
@@ -251,14 +272,31 @@ const Index = () => {
         <div className="mb-8 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
-                Gestión de Tareas Pro
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
+                  Gestión de Tareas Pro
+                </h1>
+                {userRole === 'admin' && (
+                  <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium flex items-center gap-1">
+                    <Shield className="h-4 w-4" />
+                    Admin
+                  </span>
+                )}
+              </div>
               <p className="text-muted-foreground mt-2">
                 Con IA, Pomodoro, Gamificación y Comandos de Voz
               </p>
             </div>
             <div className="flex gap-2">
+              {userRole === 'admin' && (
+                <Button
+                  variant={showAdminView ? "default" : "outline"}
+                  onClick={() => setShowAdminView(!showAdminView)}
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  {showAdminView ? "Vista Usuario" : "Vista Admin"}
+                </Button>
+              )}
               <AddTaskDialog onAddTask={addTask} />
               <Button variant="outline" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -268,21 +306,26 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <AIAssistant tasks={tasks} onAddTasks={addMultipleTasks} />
-          <PomodoroTimer />
-          <GamificationPanel />
-          <VoiceCommands onVoiceCommand={handleVoiceCommand} />
-        </div>
+        {/* Admin Dashboard or Regular View */}
+        {userRole === 'admin' && showAdminView ? (
+          <AdminDashboard />
+        ) : (
+          <>
+            {/* Feature Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <AIAssistant tasks={tasks} onAddTasks={addMultipleTasks} />
+              <PomodoroTimer />
+              <GamificationPanel />
+              <VoiceCommands onVoiceCommand={handleVoiceCommand} />
+            </div>
 
-        {/* Stats */}
-        <div className="mb-8">
-          <TaskStats tasks={tasks} />
-        </div>
+            {/* Stats */}
+            <div className="mb-8">
+              <TaskStats tasks={tasks} />
+            </div>
 
-        {/* Task List */}
-        <Tabs defaultValue="all" className="space-y-6">
+            {/* Task List */}
+            <Tabs defaultValue="all" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="all" className="gap-2">
               <ListChecks className="h-4 w-4" />
@@ -351,8 +394,10 @@ const Index = () => {
                 />
               ))
             )}
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+            </Tabs>
+          </>
+        )}
       </div>
     </div>
   );
