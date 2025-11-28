@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, AlertCircle, CheckCircle2, Target } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, AlertCircle, CheckCircle2, Target, Award, Flame } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWithinInterval, startOfWeek, endOfWeek, addDays, differenceInDays, isPast, isFuture } from "date-fns";
 import { es } from "date-fns/locale";
 import { Progress } from "@/components/ui/progress";
@@ -103,6 +103,29 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
   const overdueTasks = getOverdueTasks();
   const weekStats = getWeekStats();
 
+  // Get month stats
+  const getMonthStats = () => {
+    const monthTasks = tasks.filter(task => {
+      if (task.startDate) {
+        const start = new Date(task.startDate);
+        if (start.getMonth() === currentDate.getMonth() && start.getFullYear() === currentDate.getFullYear()) return true;
+      }
+      if (task.dueDate) {
+        const due = new Date(task.dueDate);
+        if (due.getMonth() === currentDate.getMonth() && due.getFullYear() === currentDate.getFullYear()) return true;
+      }
+      return false;
+    });
+
+    const completed = monthTasks.filter(t => t.completed).length;
+    const highPriority = monthTasks.filter(t => t.priority === 'high').length;
+    const total = monthTasks.length;
+
+    return { completed, highPriority, total };
+  };
+
+  const monthStats = getMonthStats();
+
   const goToPreviousMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   };
@@ -183,6 +206,74 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
             }
           }}
         />
+
+        {/* Legend and Month Stats */}
+        <div className="mt-6 space-y-4">
+          {/* Legend */}
+          <div className="bg-muted/30 rounded-lg p-4">
+            <h4 className="text-sm font-semibold mb-3">Leyenda</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500" />
+                <span className="text-xs text-muted-foreground">Fecha de inicio</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-orange-500" />
+                <span className="text-xs text-muted-foreground">Fecha de vencimiento</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-primary" />
+                <span className="text-xs text-muted-foreground">Tarea en progreso</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border-2 border-primary bg-transparent" />
+                <span className="text-xs text-muted-foreground">Día actual</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Month Overview */}
+          <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg p-4 border border-primary/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Award className="h-4 w-4 text-primary" />
+              <h4 className="text-sm font-semibold">Resumen del Mes</h4>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{monthStats.total}</div>
+                <div className="text-xs text-muted-foreground mt-1">Total Tareas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{monthStats.completed}</div>
+                <div className="text-xs text-muted-foreground mt-1">Completadas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{monthStats.highPriority}</div>
+                <div className="text-xs text-muted-foreground mt-1">Alta Prioridad</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Productivity Insight */}
+          {monthStats.total > 0 && (
+            <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-lg p-4 border border-accent/20">
+              <div className="flex items-center gap-2 mb-2">
+                <Flame className="h-4 w-4 text-orange-500" />
+                <h4 className="text-sm font-semibold">Productividad</h4>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {monthStats.completed === 0 
+                  ? "¡Comienza a completar tareas para ver tu progreso!"
+                  : Math.round((monthStats.completed / monthStats.total) * 100) >= 70
+                  ? `¡Excelente trabajo! Has completado ${Math.round((monthStats.completed / monthStats.total) * 100)}% de tus tareas este mes. 🎉`
+                  : Math.round((monthStats.completed / monthStats.total) * 100) >= 40
+                  ? `Vas por buen camino con ${Math.round((monthStats.completed / monthStats.total) * 100)}% completado. ¡Sigue así! 💪`
+                  : `Tienes ${monthStats.total - monthStats.completed} tareas pendientes. ¡Tú puedes! 🚀`
+                }
+              </p>
+            </div>
+          )}
+        </div>
       </Card>
 
       {/* Right sidebar with multiple panels */}
