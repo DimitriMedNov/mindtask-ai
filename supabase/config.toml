@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.assign-role]
 verify_jwt = true
+
+[functions.get-users]
+verify_jwt = true
