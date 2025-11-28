@@ -8,10 +8,10 @@ import type { Task } from "./TaskCard";
 
 interface AIAssistantProps {
   tasks: Task[];
-  onAddTasks: (tasks: Omit<Task, "id" | "createdAt">[]) => void;
+  onSuggest: (suggestions: Omit<Task, "id" | "createdAt" | "completed">[]) => void;
 }
 
-export const AIAssistant = ({ tasks, onAddTasks }: AIAssistantProps) => {
+export const AIAssistant = ({ tasks, onSuggest }: AIAssistantProps) => {
   const [loading, setLoading] = useState(false);
 
   const getSuggestions = async () => {
@@ -24,13 +24,12 @@ export const AIAssistant = ({ tasks, onAddTasks }: AIAssistantProps) => {
       if (error) throw error;
 
       if (data.suggestions && data.suggestions.length > 0) {
-        onAddTasks(data.suggestions.map((s: any) => ({
+        onSuggest(data.suggestions.map((s: any) => ({
           ...s,
-          completed: false,
-          description: `Sugerido por IA basado en tus tareas actuales`
+          description: s.description || `Sugerencia basada en tus tareas actuales`
         })));
-        toast.success("¡Sugerencias de IA añadidas!", {
-          description: `Se agregaron ${data.suggestions.length} tareas sugeridas`
+        toast.success("¡Sugerencias generadas!", {
+          description: `Revisa ${data.suggestions.length} sugerencias de IA`
         });
       }
     } catch (error: any) {

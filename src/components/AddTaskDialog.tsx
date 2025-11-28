@@ -32,6 +32,8 @@ export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [category, setCategory] = useState("General");
+  const [startDate, setStartDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +45,8 @@ export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
       completed: false,
       priority,
       category,
+      startDate: startDate ? new Date(startDate) : undefined,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
     });
 
     // Reset form
@@ -50,6 +54,8 @@ export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
     setDescription("");
     setPriority("medium");
     setCategory("General");
+    setStartDate("");
+    setDueDate("");
     setOpen(false);
   };
 
@@ -117,6 +123,26 @@ export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
                     <SelectItem value="Urgente">Urgente</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="start-date">Fecha de inicio</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="due-date">Fecha límite</Label>
+                <Input
+                  id="due-date"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
               </div>
             </div>
           </div>

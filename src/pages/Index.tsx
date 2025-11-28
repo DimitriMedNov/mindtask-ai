@@ -4,6 +4,7 @@ import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { TaskStats } from "@/components/TaskStats";
 import { Auth } from "@/components/Auth";
 import { AIAssistant } from "@/components/AIAssistant";
+import { AISuggestions } from "@/components/AISuggestions";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
 import { GamificationPanel } from "@/components/GamificationPanel";
 import { VoiceCommands } from "@/components/VoiceCommands";
@@ -19,6 +20,15 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
   const [showAdminView, setShowAdminView] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Array<{
+    title: string;
+    description?: string;
+    priority: "low" | "medium" | "high";
+    category: string;
+    startDate?: Date;
+    dueDate?: Date;
+    completed: false;
+  }>>([]);
   useEffect(() => {
     // Check auth status
     supabase.auth.getSession().then(({
@@ -73,7 +83,9 @@ const Index = () => {
         completed: task.completed,
         priority: task.priority as "high" | "medium" | "low",
         category: task.category,
-        createdAt: new Date(task.created_at)
+        createdAt: new Date(task.created_at),
+        startDate: task.start_date ? new Date(task.start_date) : undefined,
+        dueDate: task.due_date ? new Date(task.due_date) : undefined,
       })));
     } catch (error) {
       console.error('Error loading tasks:', error);
@@ -100,7 +112,9 @@ const Index = () => {
         completed: data.completed,
         priority: data.priority as "high" | "medium" | "low",
         category: data.category,
-        createdAt: new Date(data.created_at)
+        createdAt: new Date(data.created_at),
+        startDate: data.start_date ? new Date(data.start_date) : undefined,
+        dueDate: data.due_date ? new Date(data.due_date) : undefined,
       };
       setTasks([newTask, ...tasks]);
       await updateUserStats('add');
@@ -115,6 +129,29 @@ const Index = () => {
   const addMultipleTasks = async (tasksData: Omit<Task, "id" | "createdAt">[]) => {
     for (const taskData of tasksData) {
       await addTask(taskData);
+    }
+  };
+
+  const editTask = async (id: string, updates: Partial<Task>) => {
+    try {
+      const { error } = await supabase.from('tasks').update({
+        title: updates.title,
+        description: updates.description,
+        priority: updates.priority,
+        category: updates.category,
+        start_date: updates.startDate?.toISOString().split('T')[0],
+        due_date: updates.dueDate?.toISOString().split('T')[0],
+      }).eq('id', id);
+
+      if (error) throw error;
+
+      setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t));
+      toast.success("Tarea actualizada", {
+        description: "Los cambios se han guardado exitosamente"
+      });
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error("Error al actualizar tarea");
     }
   };
   const toggleTask = async (id: string) => {
@@ -201,6 +238,23 @@ const Index = () => {
       }
     }
   };
+
+  const handleAISuggestions = (suggestions: Omit<Task, "id" | "createdAt" | "completed">[]) => {
+    setAiSuggestions(suggestions.map(s => ({ ...s, completed: false as const })));
+  };
+
+  const handleAcceptSuggestion = (suggestion: { title: string; description?: string; priority: "low" | "medium" | "high"; category: string; startDate?: Date; dueDate?: Date; completed: false }) => {
+    addTask({ ...suggestion });
+    setAiSuggestions(prev => prev.filter(s => s.title !== suggestion.title));
+  };
+
+  const handleRejectSuggestion = (index: number) => {
+    setAiSuggestions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleClearSuggestions = () => {
+    setAiSuggestions([]);
+  };
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast.success("Sesión cerrada");
@@ -255,11 +309,23 @@ const Index = () => {
         {userRole === 'admin' && showAdminView ? <AdminDashboard /> : <>
             {/* Feature Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <AIAssistant tasks={tasks} onAddTasks={addMultipleTasks} />
+              <AIAssistant tasks={tasks} onSuggest={handleAISuggestions} />
               <PomodoroTimer />
               <GamificationPanel />
               <VoiceCommands onVoiceCommand={handleVoiceCommand} />
             </div>
+
+            {/* AI Suggestions */}
+            {aiSuggestions.length > 0 && (
+              <div className="mb-8">
+                <AISuggestions
+                  suggestions={aiSuggestions}
+                  onAccept={handleAcceptSuggestion}
+                  onReject={handleRejectSuggestion}
+                  onClearAll={handleClearSuggestions}
+                />
+              </div>
+            )}
 
             {/* Stats */}
             <div className="mb-8">
@@ -286,7 +352,7 @@ const Index = () => {
           <TabsContent value="all" className="space-y-4">
             {tasks.length === 0 ? <div className="text-center py-12">
                 <p className="text-muted-foreground">No hay tareas. ¡Crea tu primera tarea!</p>
-              </div> : tasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} />)}
+              </div> : tasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={editTask} />)}
           </TabsContent>
 
           <TabsContent value="active" className="space-y-4">
@@ -294,7 +360,7 @@ const Index = () => {
                 <p className="text-muted-foreground">
                   ¡Genial! No tienes tareas pendientes.
                 </p>
-              </div> : activeTasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} />)}
+              </div> : activeTasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={editTask} />)}
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-4">
@@ -302,7 +368,7 @@ const Index = () => {
                 <p className="text-muted-foreground">
                   Aún no has completado ninguna tarea.
                 </p>
-              </div> : completedTasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} />)}
+              </div> : completedTasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={editTask} />)}
             </TabsContent>
             </Tabs>
           </>}
