@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.voice-to-text]
 verify_jwt = true
+
+[functions.assign-role]
+verify_jwt = true
