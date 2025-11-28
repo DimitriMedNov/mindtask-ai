@@ -1,1 +1,7 @@
 project_id = "ivwndpitsqtvxyizyuff"
+
+[functions.ai-task-suggestions]
+verify_jwt = true
+
+[functions.voice-to-text]
+verify_jwt = true
