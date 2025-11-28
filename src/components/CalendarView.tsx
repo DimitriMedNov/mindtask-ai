@@ -9,18 +9,20 @@ import { es } from "date-fns/locale";
 import { Progress } from "@/components/ui/progress";
 import type { Task } from "./TaskCard";
 import { cn } from "@/lib/utils";
-
 interface CalendarViewProps {
   tasks: Task[];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit?: (id: string, updates: Partial<Task>) => void;
 }
-
-export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarViewProps) => {
+export const CalendarView = ({
+  tasks,
+  onToggle,
+  onDelete,
+  onEdit
+}: CalendarViewProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
 
@@ -39,12 +41,14 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
       if (task.startDate && task.dueDate) {
         const start = new Date(task.startDate);
         const end = new Date(task.dueDate);
-        return isWithinInterval(date, { start, end });
+        return isWithinInterval(date, {
+          start,
+          end
+        });
       }
       return false;
     });
   };
-
   const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
 
   // Get task count for each day to show indicators
@@ -77,28 +81,38 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
 
   // Get week stats
   const getWeekStats = () => {
-    const weekStart = startOfWeek(currentDate, { locale: es });
-    const weekEnd = endOfWeek(currentDate, { locale: es });
-    
+    const weekStart = startOfWeek(currentDate, {
+      locale: es
+    });
+    const weekEnd = endOfWeek(currentDate, {
+      locale: es
+    });
     const weekTasks = tasks.filter(task => {
       if (task.startDate) {
         const start = new Date(task.startDate);
-        if (isWithinInterval(start, { start: weekStart, end: weekEnd })) return true;
+        if (isWithinInterval(start, {
+          start: weekStart,
+          end: weekEnd
+        })) return true;
       }
       if (task.dueDate) {
         const due = new Date(task.dueDate);
-        if (isWithinInterval(due, { start: weekStart, end: weekEnd })) return true;
+        if (isWithinInterval(due, {
+          start: weekStart,
+          end: weekEnd
+        })) return true;
       }
       return false;
     });
-
     const completed = weekTasks.filter(t => t.completed).length;
     const total = weekTasks.length;
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    return { completed, total, percentage };
+    const percentage = total > 0 ? Math.round(completed / total * 100) : 0;
+    return {
+      completed,
+      total,
+      percentage
+    };
   };
-
   const upcomingTasks = getUpcomingTasks();
   const overdueTasks = getOverdueTasks();
   const weekStats = getWeekStats();
@@ -116,37 +130,35 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
       }
       return false;
     });
-
     const completed = monthTasks.filter(t => t.completed).length;
     const highPriority = monthTasks.filter(t => t.priority === 'high').length;
     const total = monthTasks.length;
-
-    return { completed, highPriority, total };
+    return {
+      completed,
+      highPriority,
+      total
+    };
   };
-
   const monthStats = getMonthStats();
-
   const goToPreviousMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   };
-
   const goToNextMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
-
   const goToToday = () => {
     const today = new Date();
     setCurrentDate(today);
     setSelectedDate(today);
   };
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+  return <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Calendar */}
       <Card className="lg:col-span-3 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">
-            {format(currentDate, "MMMM yyyy", { locale: es })}
+            {format(currentDate, "MMMM yyyy", {
+            locale: es
+          })}
           </h2>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={goToToday}>
@@ -161,73 +173,48 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
           </div>
         </div>
 
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={setSelectedDate}
-          month={currentDate}
-          onMonthChange={setCurrentDate}
-          locale={es}
-          className={cn("pointer-events-auto w-full")}
-          classNames={{
-            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-            month: "space-y-4 w-full",
-            caption: "flex justify-center pt-1 relative items-center",
-            caption_label: "text-xl font-semibold",
-            nav: "space-x-1 flex items-center",
-            nav_button: "h-10 w-10 bg-transparent p-0 opacity-50 hover:opacity-100",
-            nav_button_previous: "absolute left-1",
-            nav_button_next: "absolute right-1",
-            table: "w-full border-collapse space-y-1",
-            head_row: "flex w-full",
-            head_cell: "text-muted-foreground rounded-md w-full font-semibold text-sm py-2",
-            row: "flex w-full mt-2",
-            cell: "relative p-0 text-center text-base focus-within:relative focus-within:z-20 w-full h-16",
-            day: "h-full w-full p-0 font-normal aria-selected:opacity-100 hover:bg-accent rounded-md transition-colors",
-            day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-            day_today: "bg-accent text-accent-foreground",
-            day_outside: "text-muted-foreground opacity-50",
-            day_disabled: "text-muted-foreground opacity-50",
-            day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-            day_hidden: "invisible",
-          }}
-          components={{
-            Day: ({ date, ...props }) => {
-              const taskCount = getTaskCountForDate(date);
-              const tasksForDay = getTasksForDate(date);
-              const hasStartDate = tasksForDay.some(t => t.startDate && isSameDay(new Date(t.startDate), date));
-              const hasDueDate = tasksForDay.some(t => t.dueDate && isSameDay(new Date(t.dueDate), date));
-              
-              return (
-                  <div className="relative w-full h-full flex items-center justify-center">
-                  <button
-                    {...props}
-                    className={cn(
-                      "w-full h-full p-3 text-base font-medium relative hover:bg-accent rounded-md transition-colors flex flex-col items-center justify-center gap-1",
-                      isSameDay(date, selectedDate || new Date()) && "bg-primary text-primary-foreground hover:bg-primary/90",
-                      isSameDay(date, new Date()) && !isSameDay(date, selectedDate || new Date()) && "border-2 border-primary"
-                    )}
-                  >
+        <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} month={currentDate} onMonthChange={setCurrentDate} locale={es} className={cn("pointer-events-auto w-full")} classNames={{
+        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+        month: "space-y-4 w-full",
+        caption: "flex justify-center pt-1 relative items-center",
+        caption_label: "text-xl font-semibold",
+        nav: "space-x-1 flex items-center",
+        nav_button: "h-10 w-10 bg-transparent p-0 opacity-50 hover:opacity-100",
+        nav_button_previous: "absolute left-1",
+        nav_button_next: "absolute right-1",
+        table: "w-full border-collapse space-y-1",
+        head_row: "flex w-full",
+        head_cell: "text-muted-foreground rounded-md w-full font-semibold text-sm py-2",
+        row: "flex w-full mt-2",
+        cell: "relative p-0 text-center text-base focus-within:relative focus-within:z-20 w-full h-16",
+        day: "h-full w-full p-0 font-normal aria-selected:opacity-100 hover:bg-accent rounded-md transition-colors",
+        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+        day_today: "bg-accent text-accent-foreground",
+        day_outside: "text-muted-foreground opacity-50",
+        day_disabled: "text-muted-foreground opacity-50",
+        day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+        day_hidden: "invisible"
+      }} components={{
+        Day: ({
+          date,
+          ...props
+        }) => {
+          const taskCount = getTaskCountForDate(date);
+          const tasksForDay = getTasksForDate(date);
+          const hasStartDate = tasksForDay.some(t => t.startDate && isSameDay(new Date(t.startDate), date));
+          const hasDueDate = tasksForDay.some(t => t.dueDate && isSameDay(new Date(t.dueDate), date));
+          return <div className="relative w-full h-full flex items-center justify-center">
+                  <button {...props} className={cn("w-full h-full p-3 text-base font-medium relative hover:bg-accent rounded-md transition-colors flex flex-col items-center justify-center gap-1", isSameDay(date, selectedDate || new Date()) && "bg-primary text-primary-foreground hover:bg-primary/90", isSameDay(date, new Date()) && !isSameDay(date, selectedDate || new Date()) && "border-2 border-primary")}>
                     <span className="text-lg">{format(date, "d")}</span>
-                    {taskCount > 0 && (
-                      <div className="flex gap-1 mt-1">
-                        {hasStartDate && (
-                          <div className="w-2 h-2 rounded-full bg-blue-500" />
-                        )}
-                        {hasDueDate && (
-                          <div className="w-2 h-2 rounded-full bg-orange-500" />
-                        )}
-                        {!hasStartDate && !hasDueDate && taskCount > 0 && (
-                          <div className="w-2 h-2 rounded-full bg-primary" />
-                        )}
-                      </div>
-                    )}
+                    {taskCount > 0 && <div className="flex gap-1 mt-1">
+                        {hasStartDate && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                        {hasDueDate && <div className="w-2 h-2 rounded-full bg-orange-500" />}
+                        {!hasStartDate && !hasDueDate && taskCount > 0 && <div className="w-2 h-2 rounded-full bg-primary" />}
+                      </div>}
                   </button>
-                </div>
-              );
-            }
-          }}
-        />
+                </div>;
+        }
+      }} />
 
         {/* Legend and Month Stats */}
         <div className="mt-6 space-y-4">
@@ -255,9 +242,9 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
           </div>
 
           {/* Month Overview */}
-          <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg p-4 border border-primary/20">
+          <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg p-4 border border-primary/20 bg-primary-foreground text-secondary-foreground">
             <div className="flex items-center gap-2 mb-3">
-              <Award className="h-4 w-4 text-primary" />
+              <Award className="h-4 w-4 text-emerald-900" />
               <h4 className="text-sm font-semibold">Resumen del Mes</h4>
             </div>
             <div className="grid grid-cols-3 gap-4">
@@ -277,24 +264,15 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
           </div>
 
           {/* Productivity Insight */}
-          {monthStats.total > 0 && (
-            <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-lg p-4 border border-accent/20">
+          {monthStats.total > 0 && <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-lg p-4 border bg-primary-foreground border-solid border-secondary">
               <div className="flex items-center gap-2 mb-2">
                 <Flame className="h-4 w-4 text-orange-500" />
                 <h4 className="text-sm font-semibold">Productividad</h4>
               </div>
               <p className="text-xs text-muted-foreground">
-                {monthStats.completed === 0 
-                  ? "¡Comienza a completar tareas para ver tu progreso!"
-                  : Math.round((monthStats.completed / monthStats.total) * 100) >= 70
-                  ? `¡Excelente trabajo! Has completado ${Math.round((monthStats.completed / monthStats.total) * 100)}% de tus tareas este mes. 🎉`
-                  : Math.round((monthStats.completed / monthStats.total) * 100) >= 40
-                  ? `Vas por buen camino con ${Math.round((monthStats.completed / monthStats.total) * 100)}% completado. ¡Sigue así! 💪`
-                  : `Tienes ${monthStats.total - monthStats.completed} tareas pendientes. ¡Tú puedes! 🚀`
-                }
+                {monthStats.completed === 0 ? "¡Comienza a completar tareas para ver tu progreso!" : Math.round(monthStats.completed / monthStats.total * 100) >= 70 ? `¡Excelente trabajo! Has completado ${Math.round(monthStats.completed / monthStats.total * 100)}% de tus tareas este mes. 🎉` : Math.round(monthStats.completed / monthStats.total * 100) >= 40 ? `Vas por buen camino con ${Math.round(monthStats.completed / monthStats.total * 100)}% completado. ¡Sigue así! 💪` : `Tienes ${monthStats.total - monthStats.completed} tareas pendientes. ¡Tú puedes! 🚀`}
               </p>
-            </div>
-          )}
+            </div>}
         </div>
       </Card>
 
@@ -319,31 +297,25 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
         </Card>
 
         {/* Overdue Tasks */}
-        {overdueTasks.length > 0 && (
-          <Card className="p-6 border-destructive/50">
+        {overdueTasks.length > 0 && <Card className="p-6 border-destructive/50">
             <div className="flex items-center gap-2 mb-4">
               <AlertCircle className="h-5 w-5 text-destructive" />
               <h3 className="text-lg font-semibold text-destructive">Tareas Vencidas</h3>
             </div>
             <div className="space-y-2">
-              {overdueTasks.slice(0, 3).map(task => (
-                <div key={task.id} className="p-2 rounded-lg bg-destructive/5 border border-destructive/20">
+              {overdueTasks.slice(0, 3).map(task => <div key={task.id} className="p-2 rounded-lg bg-destructive/5 border border-destructive/20">
                   <p className="text-sm font-medium line-clamp-1">{task.title}</p>
-                  {task.dueDate && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Venció: {format(new Date(task.dueDate), "d MMM", { locale: es })}
-                    </p>
-                  )}
-                </div>
-              ))}
-              {overdueTasks.length > 3 && (
-                <p className="text-xs text-muted-foreground text-center mt-2">
+                  {task.dueDate && <p className="text-xs text-muted-foreground mt-1">
+                      Venció: {format(new Date(task.dueDate), "d MMM", {
+                locale: es
+              })}
+                    </p>}
+                </div>)}
+              {overdueTasks.length > 3 && <p className="text-xs text-muted-foreground text-center mt-2">
                   +{overdueTasks.length - 3} tareas más vencidas
-                </p>
-              )}
+                </p>}
             </div>
-          </Card>
-        )}
+          </Card>}
 
         {/* Upcoming Tasks */}
         <Card className="p-6">
@@ -351,32 +323,26 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
             <Target className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold">Próximas (7 días)</h3>
           </div>
-          {upcomingTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+          {upcomingTasks.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">
               No hay tareas próximas
-            </p>
-          ) : (
-            <div className="space-y-2">
+            </p> : <div className="space-y-2">
               {upcomingTasks.slice(0, 5).map(task => {
-                const daysUntil = task.dueDate ? differenceInDays(new Date(task.dueDate), new Date()) : 0;
-                return (
-                  <div key={task.id} className="p-2 rounded-lg bg-muted/50 border">
+            const daysUntil = task.dueDate ? differenceInDays(new Date(task.dueDate), new Date()) : 0;
+            return <div key={task.id} className="p-2 rounded-lg bg-muted/50 border">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium line-clamp-1 flex-1">{task.title}</p>
                       <Badge variant={daysUntil <= 2 ? "destructive" : "secondary"} className="text-xs shrink-0">
                         {daysUntil === 0 ? "Hoy" : daysUntil === 1 ? "Mañana" : `${daysUntil}d`}
                       </Badge>
                     </div>
-                    {task.dueDate && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(task.dueDate), "d 'de' MMMM", { locale: es })}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    {task.dueDate && <p className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(task.dueDate), "d 'de' MMMM", {
+                  locale: es
+                })}
+                      </p>}
+                  </div>;
+          })}
+            </div>}
         </Card>
 
         {/* Task list for selected date */}
@@ -384,89 +350,54 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
           <div className="flex items-center gap-2 mb-4">
             <CalendarIcon className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-semibold">
-              {selectedDate ? format(selectedDate, "d 'de' MMMM", { locale: es }) : "Selecciona un día"}
+              {selectedDate ? format(selectedDate, "d 'de' MMMM", {
+              locale: es
+            }) : "Selecciona un día"}
             </h3>
           </div>
 
-          {selectedDateTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
+          {selectedDateTasks.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">
               No hay tareas para este día
-            </p>
-          ) : (
-            <div className="space-y-3">
+            </p> : <div className="space-y-3">
               {selectedDateTasks.map(task => {
-                const isStartDate = task.startDate && selectedDate && isSameDay(new Date(task.startDate), selectedDate);
-                const isDueDate = task.dueDate && selectedDate && isSameDay(new Date(task.dueDate), selectedDate);
-                
-                return (
-                  <div
-                    key={task.id}
-                    className={cn(
-                      "p-3 rounded-lg border transition-all",
-                      task.completed && "opacity-60"
-                    )}
-                  >
+            const isStartDate = task.startDate && selectedDate && isSameDay(new Date(task.startDate), selectedDate);
+            const isDueDate = task.dueDate && selectedDate && isSameDay(new Date(task.dueDate), selectedDate);
+            return <div key={task.id} className={cn("p-3 rounded-lg border transition-all", task.completed && "opacity-60")}>
                     <div className="flex items-start gap-2">
-                      <input
-                        type="checkbox"
-                        checked={task.completed}
-                        onChange={() => onToggle(task.id)}
-                        className="mt-1"
-                      />
+                      <input type="checkbox" checked={task.completed} onChange={() => onToggle(task.id)} className="mt-1" />
                       <div className="flex-1 min-w-0">
-                        <h4 className={cn(
-                          "font-medium text-sm",
-                          task.completed && "line-through"
-                        )}>
+                        <h4 className={cn("font-medium text-sm", task.completed && "line-through")}>
                           {task.title}
                         </h4>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {task.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                             {task.description}
-                          </p>
-                        )}
+                          </p>}
                         <div className="flex flex-wrap gap-1 mt-2">
-                          <Badge
-                            variant={
-                              task.priority === "high" ? "destructive" :
-                              task.priority === "medium" ? "default" : "secondary"
-                            }
-                            className="text-xs"
-                          >
-                            {task.priority === "high" ? "Alta" :
-                             task.priority === "medium" ? "Media" : "Baja"}
+                          <Badge variant={task.priority === "high" ? "destructive" : task.priority === "medium" ? "default" : "secondary"} className="text-xs">
+                            {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
                           </Badge>
-                          {isStartDate && (
-                            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
+                          {isStartDate && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
                               Inicio
-                            </Badge>
-                          )}
-                          {isDueDate && (
-                            <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
+                            </Badge>}
+                          {isDueDate && <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
                               Vence
-                            </Badge>
-                          )}
+                            </Badge>}
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  </div>;
+          })}
+            </div>}
 
-          {selectedDateTasks.length > 0 && (
-            <div className="mt-4 pt-4 border-t">
+          {selectedDateTasks.length > 0 && <div className="mt-4 pt-4 border-t">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Total: {selectedDateTasks.length} tarea{selectedDateTasks.length !== 1 ? 's' : ''}</span>
                 <span>
                   {selectedDateTasks.filter(t => t.completed).length} completada{selectedDateTasks.filter(t => t.completed).length !== 1 ? 's' : ''}
                 </span>
               </div>
-            </div>
-          )}
+            </div>}
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 };
