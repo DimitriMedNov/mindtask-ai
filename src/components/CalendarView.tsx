@@ -168,7 +168,29 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
           month={currentDate}
           onMonthChange={setCurrentDate}
           locale={es}
-          className={cn("pointer-events-auto")}
+          className={cn("pointer-events-auto w-full")}
+          classNames={{
+            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+            month: "space-y-4 w-full",
+            caption: "flex justify-center pt-1 relative items-center",
+            caption_label: "text-xl font-semibold",
+            nav: "space-x-1 flex items-center",
+            nav_button: "h-10 w-10 bg-transparent p-0 opacity-50 hover:opacity-100",
+            nav_button_previous: "absolute left-1",
+            nav_button_next: "absolute right-1",
+            table: "w-full border-collapse space-y-1",
+            head_row: "flex w-full",
+            head_cell: "text-muted-foreground rounded-md w-full font-semibold text-sm py-2",
+            row: "flex w-full mt-2",
+            cell: "relative p-0 text-center text-base focus-within:relative focus-within:z-20 w-full h-16",
+            day: "h-full w-full p-0 font-normal aria-selected:opacity-100 hover:bg-accent rounded-md transition-colors",
+            day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+            day_today: "bg-accent text-accent-foreground",
+            day_outside: "text-muted-foreground opacity-50",
+            day_disabled: "text-muted-foreground opacity-50",
+            day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+            day_hidden: "invisible",
+          }}
           components={{
             Day: ({ date, ...props }) => {
               const taskCount = getTaskCountForDate(date);
@@ -177,26 +199,26 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit }: CalendarView
               const hasDueDate = tasksForDay.some(t => t.dueDate && isSameDay(new Date(t.dueDate), date));
               
               return (
-                <div className="relative w-full h-full">
+                  <div className="relative w-full h-full flex items-center justify-center">
                   <button
                     {...props}
                     className={cn(
-                      "w-full h-full p-2 text-sm relative hover:bg-accent rounded-md transition-colors",
+                      "w-full h-full p-3 text-base font-medium relative hover:bg-accent rounded-md transition-colors flex flex-col items-center justify-center gap-1",
                       isSameDay(date, selectedDate || new Date()) && "bg-primary text-primary-foreground hover:bg-primary/90",
-                      isSameDay(date, new Date()) && !isSameDay(date, selectedDate || new Date()) && "border border-primary"
+                      isSameDay(date, new Date()) && !isSameDay(date, selectedDate || new Date()) && "border-2 border-primary"
                     )}
                   >
-                    <span>{format(date, "d")}</span>
+                    <span className="text-lg">{format(date, "d")}</span>
                     {taskCount > 0 && (
-                      <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
+                      <div className="flex gap-1 mt-1">
                         {hasStartDate && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
                         )}
                         {hasDueDate && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                          <div className="w-2 h-2 rounded-full bg-orange-500" />
                         )}
                         {!hasStartDate && !hasDueDate && taskCount > 0 && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          <div className="w-2 h-2 rounded-full bg-primary" />
                         )}
                       </div>
                     )}
