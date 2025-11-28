@@ -57,7 +57,7 @@ export const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Gestión de Tareas
+            MindTask AI
           </CardTitle>
           <CardDescription className="text-center">
             Organiza tu vida con IA, Pomodoro y gamificación

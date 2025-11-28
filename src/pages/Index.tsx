@@ -282,7 +282,7 @@ const Index = () => {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-primary">
-                  Gestión de Tareas Pro
+                  MindTask AI
                 </h1>
                 {userRole === 'admin' && <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium flex items-center gap-1">
                     <Shield className="h-4 w-4" />
