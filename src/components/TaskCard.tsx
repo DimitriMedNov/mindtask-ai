@@ -3,8 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Clock } from "lucide-react";
+import { Trash2, Clock, Calendar, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { EditTaskDialog } from "./EditTaskDialog";
 
 export type Task = {
   id: string;
@@ -14,12 +17,15 @@ export type Task = {
   priority: "low" | "medium" | "high";
   category: string;
   createdAt: Date;
+  startDate?: Date;
+  dueDate?: Date;
 };
 
 type TaskCardProps = {
   task: Task;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit?: (id: string, updates: Partial<Task>) => void;
 };
 
 const priorityColors = {
@@ -34,7 +40,7 @@ const priorityLabels = {
   high: "Alta",
 };
 
-export function TaskCard({ task, onToggle, onDelete }: TaskCardProps) {
+export function TaskCard({ task, onToggle, onDelete, onEdit }: TaskCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = () => {
@@ -68,14 +74,17 @@ export function TaskCard({ task, onToggle, onDelete }: TaskCardProps) {
             >
               {task.title}
             </h3>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDelete}
-              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-1">
+              {onEdit && <EditTaskDialog task={task} onEditTask={onEdit} />}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDelete}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           {task.description && (
             <p className="text-sm text-muted-foreground">{task.description}</p>
@@ -87,10 +96,24 @@ export function TaskCard({ task, onToggle, onDelete }: TaskCardProps) {
             <Badge variant="secondary" className="font-medium">
               {task.category}
             </Badge>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          </div>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            <div className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              <span>{task.createdAt.toLocaleDateString()}</span>
+              <span>{format(task.createdAt, "d MMM", { locale: es })}</span>
             </div>
+            {task.startDate && (
+              <div className="flex items-center gap-1">
+                <Calendar className="h-3 w-3 text-blue-500" />
+                <span>Inicio: {format(new Date(task.startDate), "d MMM", { locale: es })}</span>
+              </div>
+            )}
+            {task.dueDate && (
+              <div className="flex items-center gap-1">
+                <CalendarClock className="h-3 w-3 text-orange-500" />
+                <span>Límite: {format(new Date(task.dueDate), "d MMM", { locale: es })}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
