@@ -62,7 +62,7 @@ const Index = () => {
       const {
         data,
         error
-      } = await supabase.from('tasks').select('*').order('created_at', {
+      } = await supabase.from('tasks').select('*').eq('user_id', user.id).order('created_at', {
         ascending: false
       });
       if (error) throw error;
