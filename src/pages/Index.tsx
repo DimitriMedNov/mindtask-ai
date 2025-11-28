@@ -9,9 +9,10 @@ import { PomodoroTimer } from "@/components/PomodoroTimer";
 import { GamificationPanel } from "@/components/GamificationPanel";
 import { VoiceCommands } from "@/components/VoiceCommands";
 import { AdminDashboard } from "@/components/AdminDashboard";
+import { CalendarView } from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, ListChecks, LogOut, Shield } from "lucide-react";
+import { CheckCircle2, ListChecks, LogOut, Shield, Calendar, List } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 const Index = () => {
@@ -20,6 +21,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
   const [showAdminView, setShowAdminView] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [aiSuggestions, setAiSuggestions] = useState<Array<{
     title: string;
     description?: string;
@@ -332,7 +334,39 @@ const Index = () => {
               <TaskStats tasks={tasks} />
             </div>
 
-            {/* Task List */}
+            {/* View Mode Toggle */}
+            <div className="flex justify-center mb-6">
+              <div className="inline-flex rounded-lg border border-border p-1 bg-muted/50">
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="gap-2"
+                >
+                  <List className="h-4 w-4" />
+                  Lista
+                </Button>
+                <Button
+                  variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('calendar')}
+                  className="gap-2"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Calendario
+                </Button>
+              </div>
+            </div>
+
+            {/* Calendar or Task List View */}
+            {viewMode === 'calendar' ? (
+              <CalendarView
+                tasks={tasks}
+                onToggle={toggleTask}
+                onDelete={deleteTask}
+                onEdit={editTask}
+              />
+            ) : (
             <Tabs defaultValue="all" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="all" className="gap-2">
@@ -371,6 +405,7 @@ const Index = () => {
               </div> : completedTasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={editTask} />)}
             </TabsContent>
             </Tabs>
+            )}
           </>}
       </div>
     </div>;
