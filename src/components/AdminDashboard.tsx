@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Shield, Users, CheckSquare, TrendingUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { UserRoleManager } from "./UserRoleManager";
 import type { Task } from "./TaskCard";
 
 interface UserWithStats {
@@ -159,6 +160,10 @@ export const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mb-6">
+        <UserRoleManager />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
