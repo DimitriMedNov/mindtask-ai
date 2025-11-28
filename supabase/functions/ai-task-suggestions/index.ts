@@ -53,7 +53,15 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const suggestions = JSON.parse(data.choices[0].message.content);
+    
+    // Extract JSON from markdown code blocks if present
+    let content = data.choices[0].message.content;
+    const jsonMatch = content.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+    if (jsonMatch) {
+      content = jsonMatch[1];
+    }
+    
+    const suggestions = JSON.parse(content);
 
     return new Response(JSON.stringify({ suggestions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
