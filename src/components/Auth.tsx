@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,10 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft } from "lucide-react";
 export const Auth = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Redirect to dashboard if already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/dashboard');
+      }
+    });
+  }, [navigate]);
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -21,7 +33,8 @@ export const Auth = () => {
         password
       });
       if (error) throw error;
-      toast.success("¡Cuenta creada exitosamente! Ya puedes iniciar sesión.");
+      toast.success("¡Cuenta creada exitosamente!");
+      navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.message || "Error al crear cuenta");
     } finally {
@@ -40,6 +53,7 @@ export const Auth = () => {
       });
       if (error) throw error;
       toast.success("¡Bienvenido de vuelta!");
+      navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.message || "Error al iniciar sesión");
     } finally {
@@ -47,7 +61,17 @@ export const Auth = () => {
     }
   };
   return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <Card className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-4">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/')}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Volver al inicio
+        </Button>
+        
+        <Card className="w-full">
         <CardHeader className="space-y-1">
           <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-primary">
             MindTask AI
@@ -97,5 +121,6 @@ export const Auth = () => {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
     </div>;
 };
