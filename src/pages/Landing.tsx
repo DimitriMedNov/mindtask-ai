@@ -85,7 +85,7 @@ const Landing = () => {
             <Button size="lg" onClick={() => navigate('/auth')} className="text-lg">
               Empezar ahora - Es gratis
             </Button>
-            <Button size="lg" variant="outline" onClick={() => navigate('/auth')} className="text-lg">
+            <Button size="lg" variant="outline" onClick={() => navigate('/demo')} className="text-lg">
               Ver Demo
             </Button>
           </div>
