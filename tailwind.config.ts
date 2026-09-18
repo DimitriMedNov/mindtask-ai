@@ -13,7 +13,25 @@ export default {
       },
     },
     extend: {
+      /* Escala tipográfica tomada de los estilos de texto de Apple.
+         Un nombre por papel: si un texto no cabe en uno de estos, el problema
+         es la jerarquía, no el tamaño. */
+      fontSize: {
+        caption: ["0.8125rem", { lineHeight: "1.15rem", letterSpacing: "0.01em" }],
+        footnote: ["0.875rem", { lineHeight: "1.25rem" }],
+        body: ["1rem", { lineHeight: "1.5rem" }],
+        callout: ["1.0625rem", { lineHeight: "1.55rem" }],
+        title3: ["1.25rem", { lineHeight: "1.65rem", letterSpacing: "-0.01em" }],
+        title2: ["1.375rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em" }],
+        title1: ["1.75rem", { lineHeight: "2.1rem", letterSpacing: "-0.02em" }],
+        largeTitle: ["2.125rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em" }],
+        display: ["4.5rem", { lineHeight: "1", letterSpacing: "-0.03em" }],
+      },
       colors: {
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          foreground: "hsl(var(--brand-foreground))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

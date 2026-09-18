@@ -8,6 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    color-scheme: light;
+
     --background: 210 40% 98%;
     --foreground: 220 15% 15%;
 
@@ -17,87 +19,100 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 220 15% 15%;
 
-    --primary: 186 94% 42%;
+    /* Primario oscurecido para que el texto blanco encima llegue a 4.87:1.
+       El cian brillante de la marca vive en --brand, para piezas grandes
+       (el temporizador, los iconos) donde el mínimo es 3:1. */
+    --primary: 186 94% 28%;
     --primary-foreground: 0 0% 100%;
+    --brand: 186 94% 42%;
+    --brand-foreground: 220 20% 10%;
 
     --secondary: 210 40% 96%;
     --secondary-foreground: 220 15% 15%;
 
     --muted: 210 40% 96%;
-    --muted-foreground: 220 10% 46%;
+    --muted-foreground: 220 12% 38%;
 
+    /* El ámbar necesita texto oscuro encima: con blanco daba 2.05:1 */
     --accent: 35 100% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 30 45% 12%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 42%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 186 94% 42%;
+    --ring: 186 94% 32%;
 
-    --success: 142 76% 36%;
+    --success: 142 72% 27%;
     --success-foreground: 0 0% 100%;
 
     --radius: 0.75rem;
-    
-    --gradient-primary: linear-gradient(135deg, hsl(186 94% 42%), hsl(186 94% 52%));
+
+    --gradient-primary: linear-gradient(135deg, hsl(186 94% 32%), hsl(186 94% 42%));
     --gradient-accent: linear-gradient(135deg, hsl(35 100% 55%), hsl(35 100% 65%));
-    --shadow-elegant: 0 10px 40px -10px hsl(186 94% 42% / 0.2);
-    --shadow-card: 0 4px 20px -2px hsl(220 15% 15% / 0.08);
+    --shadow-elegant: 0 10px 40px -12px hsl(186 94% 28% / 0.22);
+    --shadow-card: 0 1px 2px hsl(220 15% 15% / 0.04), 0 8px 24px -16px hsl(220 15% 15% / 0.24);
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
+    /* Movimiento: una sola curva y tres duraciones para toda la app */
+    --ease: cubic-bezier(0.32, 0.72, 0, 1);
+    --duration-fast: 140ms;
+    --duration-base: 240ms;
+    --duration-slow: 320ms;
+
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 220 18% 12%;
-    --foreground: 210 40% 98%;
+    color-scheme: dark;
 
-    --card: 220 15% 16%;
-    --card-foreground: 210 40% 98%;
+    --background: 220 20% 10%;
+    --foreground: 210 30% 96%;
 
-    --popover: 220 15% 16%;
-    --popover-foreground: 210 40% 98%;
+    --card: 220 17% 14%;
+    --card-foreground: 210 30% 96%;
 
-    --primary: 186 94% 42%;
-    --primary-foreground: 0 0% 100%;
+    --popover: 220 17% 14%;
+    --popover-foreground: 210 30% 96%;
 
-    --secondary: 220 15% 20%;
-    --secondary-foreground: 210 40% 98%;
+    /* En oscuro se invierte: cian claro con texto tinta encima (10.98:1) */
+    --primary: 186 80% 63%;
+    --primary-foreground: 220 20% 10%;
+    --brand: 186 80% 63%;
+    --brand-foreground: 220 20% 10%;
 
-    --muted: 220 15% 20%;
-    --muted-foreground: 220 10% 65%;
+    --secondary: 220 15% 19%;
+    --secondary-foreground: 210 30% 96%;
 
-    --accent: 35 100% 55%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 220 15% 19%;
+    --muted-foreground: 215 15% 68%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --accent: 35 92% 62%;
+    --accent-foreground: 30 45% 12%;
 
-    --border: 220 15% 20%;
-    --input: 220 15% 20%;
-    --ring: 186 94% 42%;
-    
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-    
-    --shadow-elegant: 0 10px 40px -10px hsl(186 94% 42% / 0.3);
-    --shadow-card: 0 4px 20px -2px hsl(0 0% 0% / 0.3);
+    --destructive: 0 72% 62%;
+    --destructive-foreground: 220 20% 10%;
+
+    --border: 220 14% 22%;
+    --input: 220 14% 22%;
+    --ring: 186 80% 63%;
+
+    --success: 142 62% 55%;
+    --success-foreground: 220 20% 10%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(186 80% 55%), hsl(186 80% 68%));
+    --gradient-accent: linear-gradient(135deg, hsl(35 92% 58%), hsl(35 92% 68%));
+    --shadow-elegant: 0 10px 40px -12px hsl(0 0% 0% / 0.5);
+    --shadow-card: 0 1px 2px hsl(0 0% 0% / 0.4), 0 8px 24px -16px hsl(0 0% 0% / 0.6);
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -115,8 +130,32 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Los números de estadísticas y del temporizador se alinean en columna */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Quien pidió menos movimiento en su sistema no ve animaciones */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Foco visible en todo lo que se pueda enfocar con teclado */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 

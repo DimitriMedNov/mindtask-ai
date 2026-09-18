@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { describeAIError, showAIErrorToast } from "@/lib/aiErrors";
 
 interface VoiceCommandsProps {
+  /** En modo compacto es un botón de ícono para la barra superior. */
+  compact?: boolean;
   onVoiceCommand: (text: string) => void;
 }
 
@@ -28,7 +30,7 @@ function blobABase64(blob: Blob): Promise<string> {
   });
 }
 
-export const VoiceCommands = ({ onVoiceCommand }: VoiceCommandsProps) => {
+export const VoiceCommands = ({ onVoiceCommand, compact = false }: VoiceCommandsProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad>({ estado: "revisando" });
@@ -144,6 +146,35 @@ export const VoiceCommands = ({ onVoiceCommand }: VoiceCommandsProps) => {
   };
 
   const noDisponible = disponibilidad.estado === "no-disponible";
+
+  // Versión compacta: un botón de ícono junto a "Nueva tarea". El motivo real de
+  // por qué no se puede dictar viaja en el title, para no ocupar una tarjeta entera.
+  if (compact) {
+    const etiqueta = noDisponible
+      ? `Dictado no disponible: ${disponibilidad.motivo}`
+      : isRecording
+        ? "Detener grabación"
+        : "Dictar una tarea";
+
+    return (
+      <Button
+        onClick={toggleRecording}
+        disabled={isProcessing || disponibilidad.estado !== "disponible"}
+        variant={isRecording ? "destructive" : "outline"}
+        size="icon"
+        title={etiqueta}
+        aria-label={etiqueta}
+      >
+        {disponibilidad.estado === "revisando" || isProcessing ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : isRecording ? (
+          <MicOff className="h-5 w-5" />
+        ) : (
+          <Mic className="h-5 w-5" />
+        )}
+      </Button>
+    );
+  }
 
   return (
     <Card className="border-secondary/20 bg-gradient-to-br from-card to-secondary/5">

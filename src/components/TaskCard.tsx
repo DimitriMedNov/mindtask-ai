@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Trash2, Clock, Calendar, CalendarClock } from "lucide-react";
+import { Trash2, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { colorVencimiento, describirVencimiento } from "@/lib/fechas";
 import { EditTaskDialog } from "./EditTaskDialog";
 
 export type Task = {
@@ -28,95 +25,92 @@ type TaskCardProps = {
   onEdit?: (id: string, updates: Partial<Task>) => void;
 };
 
-const priorityColors = {
-  low: "bg-muted text-muted-foreground",
-  medium: "bg-accent/10 text-accent border-accent/20",
-  high: "bg-destructive/10 text-destructive border-destructive/20",
+/** Una raya de color a la izquierda pesa menos que una insignia y se lee igual de rápido. */
+const franjaPrioridad = {
+  low: "bg-transparent",
+  medium: "bg-accent",
+  high: "bg-destructive",
 };
 
-const priorityLabels = {
-  low: "Baja",
-  medium: "Media",
-  high: "Alta",
+const etiquetaPrioridad = {
+  low: "Prioridad baja",
+  medium: "Prioridad media",
+  high: "Prioridad alta",
 };
 
 export function TaskCard({ task, onToggle, onDelete, onEdit }: TaskCardProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [borrando, setBorrando] = useState(false);
 
   const handleDelete = () => {
-    setIsDeleting(true);
-    setTimeout(() => onDelete(task.id), 300);
+    setBorrando(true);
+    setTimeout(() => onDelete(task.id), 200);
   };
 
+  const vencimiento = task.dueDate ? describirVencimiento(new Date(task.dueDate)) : null;
+
   return (
-    <Card
+    <div
       className={cn(
-        "p-4 transition-all duration-300 hover:shadow-lg border-border/50",
-        "bg-card backdrop-blur-sm",
-        isDeleting && "opacity-0 scale-95",
-        task.completed && "opacity-60"
+        "group relative flex items-start gap-3 rounded-xl border border-border/70 bg-card py-3 pl-4 pr-3",
+        "transition-[opacity,transform,box-shadow] duration-200 hover:border-border hover:shadow-sm",
+        borrando && "scale-[0.99] opacity-0",
+        task.completed && "opacity-65",
       )}
-      style={{ boxShadow: "var(--shadow-card)" }}
     >
-      <div className="flex items-start gap-3">
-        <Checkbox
-          checked={task.completed}
-          onCheckedChange={() => onToggle(task.id)}
-          className="mt-1 data-[state=checked]:bg-success data-[state=checked]:border-success"
-        />
-        <div className="flex-1 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              className={cn(
-                "font-semibold text-foreground transition-all",
-                task.completed && "line-through text-muted-foreground"
-              )}
-            >
-              {task.title}
-            </h3>
-            <div className="flex gap-1">
-              {onEdit && <EditTaskDialog task={task} onEditTask={onEdit} />}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDelete}
-                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          {task.description && (
-            <p className="text-sm text-muted-foreground">{task.description}</p>
+      {/* La franja de prioridad sustituye a la insignia: mismo dato, menos ruido */}
+      <span
+        aria-hidden="true"
+        className={cn("absolute inset-y-2 left-0 w-[3px] rounded-full", franjaPrioridad[task.priority])}
+      />
+
+      <Checkbox
+        checked={task.completed}
+        onCheckedChange={() => onToggle(task.id)}
+        aria-label={task.completed ? `Reabrir ${task.title}` : `Completar ${task.title}`}
+        className="mt-0.5 data-[state=checked]:border-success data-[state=checked]:bg-success"
+      />
+
+      <div className="min-w-0 flex-1">
+        <h3
+          className={cn(
+            "text-callout font-medium text-foreground",
+            task.completed && "text-muted-foreground line-through",
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className={priorityColors[task.priority]}>
-              {priorityLabels[task.priority]}
-            </Badge>
-            <Badge variant="secondary" className="font-medium">
-              {task.category}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-            <div className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              <span>{format(task.createdAt, "d MMM", { locale: es })}</span>
-            </div>
-            {task.startDate && (
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3 w-3 text-blue-500" />
-                <span>Inicio: {format(new Date(task.startDate), "d MMM", { locale: es })}</span>
-              </div>
-            )}
-            {task.dueDate && (
-              <div className="flex items-center gap-1">
-                <CalendarClock className="h-3 w-3 text-orange-500" />
-                <span>Límite: {format(new Date(task.dueDate), "d MMM", { locale: es })}</span>
-              </div>
-            )}
-          </div>
+        >
+          {task.title}
+        </h3>
+
+        {task.description && (
+          <p className="mt-0.5 truncate text-footnote text-muted-foreground">{task.description}</p>
+        )}
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
+          <span className="sr-only">{etiquetaPrioridad[task.priority]}</span>
+          <span className="rounded-md bg-secondary px-1.5 py-0.5 text-secondary-foreground">
+            {task.category}
+          </span>
+          {vencimiento && !task.completed && (
+            <span className={cn("inline-flex items-center gap-1", colorVencimiento[vencimiento.estado])}>
+              <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+              {vencimiento.texto}
+            </span>
+          )}
         </div>
       </div>
-    </Card>
+
+      {/* Acciones pegadas al texto, no al otro extremo de la pantalla */}
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
+        {onEdit && <EditTaskDialog task={task} onEditTask={onEdit} />}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleDelete}
+          aria-label={`Eliminar ${task.title}`}
+          className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   );
 }

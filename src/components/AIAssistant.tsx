@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,13 +9,25 @@ import type { Task } from "./TaskCard";
 interface AIAssistantProps {
   tasks: Task[];
   onSuggest: (suggestions: Omit<Task, "id" | "createdAt" | "completed">[]) => void;
+  /** Avisa al dashboard para que abra el espacio de las sugerencias mientras llegan. */
+  onLoadingChange?: (loading: boolean) => void;
 }
 
-export const AIAssistant = ({ tasks, onSuggest }: AIAssistantProps) => {
+/**
+ * Botón de sugerencias. Antes era una tarjeta del mismo tamaño que el temporizador,
+ * compitiendo por atención sin ser la acción principal; ahora vive junto a la lista
+ * de tareas, que es donde tiene sentido pedirlas.
+ */
+export const AIAssistant = ({ tasks, onSuggest, onLoadingChange }: AIAssistantProps) => {
   const [loading, setLoading] = useState(false);
 
+  const cambiarCarga = (valor: boolean) => {
+    setLoading(valor);
+    onLoadingChange?.(valor);
+  };
+
   const getSuggestions = async () => {
-    setLoading(true);
+    cambiarCarga(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-task-suggestions', {
         body: { userTasks: tasks }
@@ -36,40 +47,30 @@ export const AIAssistant = ({ tasks, onSuggest }: AIAssistantProps) => {
     } catch (error) {
       showAIErrorToast(await describeAIError(error));
     } finally {
-      setLoading(false);
+      cambiarCarga(false);
     }
   };
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-card to-primary/5">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          Asistente IA
-        </CardTitle>
-        <CardDescription>
-          Obtén sugerencias inteligentes basadas en tus tareas
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button
-          onClick={getSuggestions}
-          disabled={loading || tasks.length === 0}
-          className="w-full"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generando sugerencias...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Generar Sugerencias
-            </>
-          )}
-        </Button>
-      </CardContent>
-    </Card>
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={getSuggestions}
+      disabled={loading || tasks.length === 0}
+      title={tasks.length === 0 ? "Crea una tarea primero" : "Sugerir tareas con IA"}
+      className="gap-2"
+    >
+      {loading ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Pensando…
+        </>
+      ) : (
+        <>
+          <Sparkles className="h-4 w-4" />
+          Sugerir
+        </>
+      )}
+    </Button>
   );
 };
