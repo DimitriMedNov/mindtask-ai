@@ -10,6 +10,9 @@
  *   AI_API_KEY    la llave del proveedor (Ollama local no la necesita)
  *   AI_MODEL      el modelo de texto
  *   AI_STT_MODEL  el modelo de transcripción, si el proveedor la soporta
+ *   AI_STT_BASE_URL / AI_STT_API_KEY  opcionales: mandan la transcripción a otro
+ *                 servidor compatible con OpenAI (p. ej. whisper.cpp local)
+ *                 mientras el texto sigue en el proveedor principal
  *
  * Nota sobre modelos locales: estas funciones corren en los servidores de
  * Supabase, así que no alcanzan un "localhost" de tu máquina. Para usar Ollama
@@ -68,7 +71,19 @@ export type AIConfig = {
   apiKey: string;
   model: string;
   sttModel: string;
+  /** Adónde va la transcripción; por defecto, el mismo servidor que el texto. */
+  sttBaseUrl: string;
+  sttApiKey: string;
 };
+
+/** Aplica AI_STT_BASE_URL y AI_STT_API_KEY sobre la configuración ya elegida. */
+function conSTT(cfg: Omit<AIConfig, "sttBaseUrl" | "sttApiKey">): AIConfig {
+  return {
+    ...cfg,
+    sttBaseUrl: (Deno.env.get("AI_STT_BASE_URL") ?? cfg.baseUrl).replace(/\/+$/, ""),
+    sttApiKey: Deno.env.get("AI_STT_API_KEY") ?? cfg.apiKey,
+  };
+}
 
 /**
  * Lee la configuración del entorno. Devuelve null cuando no hay IA configurada,
@@ -81,13 +96,13 @@ export function readConfig(): AIConfig | null {
   // Compatibilidad: los proyectos creados en Lovable solo traen LOVABLE_API_KEY
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
   if (!raw && lovableKey) {
-    return {
+    return conSTT({
       provider: "lovable",
       baseUrl: DEFAULTS.lovable.baseUrl,
       apiKey: lovableKey,
       model: Deno.env.get("AI_MODEL") ?? DEFAULTS.lovable.model,
       sttModel: Deno.env.get("AI_STT_MODEL") ?? DEFAULTS.lovable.sttModel,
-    };
+    });
   }
 
   if (!raw) return null;
@@ -103,13 +118,13 @@ export function readConfig(): AIConfig | null {
   if (!baseUrl) throw new AIError("Falta AI_BASE_URL para el proveedor custom.", 500);
   if (d.needsKey && !apiKey) throw new AIError(`Falta AI_API_KEY para el proveedor ${provider}.`, 500);
 
-  return {
+  return conSTT({
     provider,
     baseUrl,
     apiKey,
     model: Deno.env.get("AI_MODEL") ?? d.model,
     sttModel: Deno.env.get("AI_STT_MODEL") ?? d.sttModel,
-  };
+  });
 }
 
 /** Respuesta estándar cuando no hay IA configurada. */
@@ -124,69 +139,240 @@ export function notConfigured(corsHeaders: Record<string, string>) {
   );
 }
 
-/** Genera texto. Anthropic usa su propio formato; el resto habla el de OpenAI. */
-export async function chat(cfg: AIConfig, messages: ChatMessage[], maxTokens = 1024): Promise<string> {
-  if (cfg.provider === "anthropic") return chatAnthropic(cfg, messages, maxTokens);
-  return chatOpenAICompatible(cfg, messages, maxTokens);
+// ---------------------------------------------------------------------------
+// Llamadas al modelo: tiempo límite, reintentos y registro de uso
+// ---------------------------------------------------------------------------
+
+/** Tiempo máximo de una llamada al modelo, reintentos y esperas incluidos. */
+export const TIMEOUT_MS = 30_000;
+/** Reintentos después del primer intento, solo ante 429 o 5xx del proveedor. */
+export const MAX_RETRIES = 2;
+/** Espera antes del primer reintento; se duplica en cada uno (1 s, 2 s). */
+export const BACKOFF_MS = 1_000;
+
+export const TIMEOUT_MESSAGE = "El modelo tardó demasiado en responder";
+
+/** Lo que se registra de cada llamada; ver la tabla ai_usage. */
+export type Usage = {
+  kind: "chat" | "transcription";
+  provider: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  durationMs: number;
+  /** Estado que termina viendo el usuario: 200 si salió bien, o el del AIError. */
+  status: number;
+  attempts: number;
+};
+
+export type CallOptions = {
+  maxTokens?: number;
+  timeoutMs?: number;
+  /** Se llama una vez por llamada, salga bien o mal. Un error aquí nunca rompe la respuesta. */
+  onUsage?: (usage: Usage) => void | Promise<void>;
+  /** Solo para pruebas: sustituye la espera entre reintentos. */
+  sleep?: (ms: number) => Promise<void>;
+};
+
+const esperar = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** 429 y 5xx son fallas pasajeras del proveedor; un 400 no se arregla reintentando. */
+export function isRetryable(status: number): boolean {
+  return status === 429 || status >= 500;
 }
 
-async function chatOpenAICompatible(cfg: AIConfig, messages: ChatMessage[], maxTokens: number): Promise<string> {
+/** Retry-After en segundos, si el proveedor lo manda. */
+function retryAfterMs(res: Response): number | null {
+  const valor = Number(res.headers.get("retry-after"));
+  return Number.isFinite(valor) && valor > 0 ? valor * 1000 : null;
+}
+
+type Parsed = { value: string; inputTokens: number | null; outputTokens: number | null };
+
+/**
+ * Hace la petición con un AbortController de `timeoutMs` que cubre todos los
+ * intentos, las esperas y la lectura del cuerpo. Reintenta con espera
+ * progresiva solo ante 429 o 5xx. Registra el uso al final, pase lo que pase.
+ */
+async function callModel(
+  cfg: AIConfig,
+  kind: Usage["kind"],
+  model: string,
+  url: string,
+  init: RequestInit,
+  parse: (data: unknown) => Parsed,
+  opts: CallOptions,
+): Promise<string> {
+  const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
+  const sleep = opts.sleep ?? esperar;
+  const inicio = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let attempts = 0;
+  let status = 200;
+  let tokens: { input: number | null; output: number | null } = { input: null, output: null };
+
+  // Una espera que también se corta si se acaba el tiempo
+  const pausa = (ms: number) =>
+    Promise.race([
+      sleep(ms),
+      new Promise<never>((_, reject) =>
+        controller.signal.addEventListener("abort", () => reject(new DOMException("timeout", "AbortError")), { once: true })
+      ),
+    ]);
+
+  try {
+    while (true) {
+      attempts++;
+      let res: Response;
+      try {
+        res = await fetch(url, { ...init, signal: controller.signal });
+      } catch (err) {
+        if (controller.signal.aborted) throw err;
+        throw new AIError(`No se pudo conectar con el proveedor ${cfg.provider}: ${(err as Error).message}`, 502);
+      }
+
+      if (res.ok) {
+        const parsed = parse(await res.json());
+        tokens = { input: parsed.inputTokens, output: parsed.outputTokens };
+        return parsed.value;
+      }
+
+      const cuerpo = await res.text();
+      if (isRetryable(res.status) && attempts <= MAX_RETRIES) {
+        const espera = retryAfterMs(res) ?? BACKOFF_MS * 2 ** (attempts - 1);
+        // Si la espera no cabe en el tiempo que queda, no tiene caso reintentar
+        if (Date.now() - inicio + espera < timeoutMs) {
+          await pausa(espera);
+          continue;
+        }
+      }
+      throw new AIError(`El proveedor ${cfg.provider} respondió ${res.status}: ${cuerpo.slice(0, 500)}`, 502);
+    }
+  } catch (err) {
+    if (err instanceof AIError) {
+      status = err.status;
+      throw err;
+    }
+    if (controller.signal.aborted) {
+      status = 504;
+      throw new AIError(TIMEOUT_MESSAGE, 504);
+    }
+    status = 500;
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    if (opts.onUsage) {
+      try {
+        await opts.onUsage({
+          kind,
+          provider: cfg.provider,
+          model,
+          inputTokens: tokens.input,
+          outputTokens: tokens.output,
+          durationMs: Date.now() - inicio,
+          status,
+          attempts,
+        });
+      } catch (err) {
+        console.error("No se pudo registrar el uso de IA:", err);
+      }
+    }
+  }
+}
+
+const numero = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+/** Genera texto. Anthropic usa su propio formato; el resto habla el de OpenAI. */
+export function chat(cfg: AIConfig, messages: ChatMessage[], opts: CallOptions = {}): Promise<string> {
+  const maxTokens = opts.maxTokens ?? 1024;
+  return cfg.provider === "anthropic"
+    ? chatAnthropic(cfg, messages, maxTokens, opts)
+    : chatOpenAICompatible(cfg, messages, maxTokens, opts);
+}
+
+/** Arma la petición en formato OpenAI. Exportada para poder probarla. */
+export function buildOpenAIRequest(cfg: AIConfig, messages: ChatMessage[], maxTokens: number) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
-
-  const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ model: cfg.model, messages, max_tokens: maxTokens }),
-  });
-
-  if (!res.ok) throw new AIError(`El proveedor ${cfg.provider} respondió ${res.status}: ${await res.text()}`, 502);
-
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string") throw new AIError(`Respuesta inesperada del proveedor ${cfg.provider}.`, 502);
-  return text;
+  return {
+    url: `${cfg.baseUrl}/chat/completions`,
+    init: {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ model: cfg.model, messages, max_tokens: maxTokens }),
+    },
+  };
 }
 
-async function chatAnthropic(cfg: AIConfig, messages: ChatMessage[], maxTokens: number): Promise<string> {
-  // Anthropic separa el system del resto de la conversación.
+function chatOpenAICompatible(cfg: AIConfig, messages: ChatMessage[], maxTokens: number, opts: CallOptions) {
+  const { url, init } = buildOpenAIRequest(cfg, messages, maxTokens);
+  return callModel(cfg, "chat", cfg.model, url, init, (data) => {
+    const d = data as {
+      choices?: { message?: { content?: unknown } }[];
+      usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+    };
+    const text = d?.choices?.[0]?.message?.content;
+    if (typeof text !== "string") throw new AIError(`Respuesta inesperada del proveedor ${cfg.provider}.`, 502);
+    return { value: text, inputTokens: numero(d?.usage?.prompt_tokens), outputTokens: numero(d?.usage?.completion_tokens) };
+  }, opts);
+}
+
+/** Arma la petición en formato Anthropic: el system va aparte. Exportada para poder probarla. */
+export function buildAnthropicRequest(cfg: AIConfig, messages: ChatMessage[], maxTokens: number) {
   const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
   const rest = messages.filter((m) => m.role !== "system");
-
-  const res = await fetch(`${cfg.baseUrl}/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": cfg.apiKey,
-      "anthropic-version": "2023-06-01",
+  return {
+    url: `${cfg.baseUrl}/messages`,
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": cfg.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        max_tokens: maxTokens,
+        ...(system ? { system } : {}),
+        messages: rest.map((m) => ({ role: m.role, content: m.content })),
+      }),
     },
-    body: JSON.stringify({
-      model: cfg.model,
-      max_tokens: maxTokens,
-      ...(system ? { system } : {}),
-      messages: rest.map((m) => ({ role: m.role, content: m.content })),
-    }),
-  });
+  };
+}
 
-  if (!res.ok) throw new AIError(`Anthropic respondió ${res.status}: ${await res.text()}`, 502);
+function chatAnthropic(cfg: AIConfig, messages: ChatMessage[], maxTokens: number, opts: CallOptions) {
+  const { url, init } = buildAnthropicRequest(cfg, messages, maxTokens);
+  return callModel(cfg, "chat", cfg.model, url, init, (data) => {
+    const d = data as {
+      stop_reason?: string;
+      content?: { type?: string; text?: string }[];
+      usage?: { input_tokens?: unknown; output_tokens?: unknown };
+    };
+    if (d?.stop_reason === "refusal") throw new AIError("El modelo declinó responder a esta petición.", 502);
+    const text = (d?.content ?? [])
+      .filter((b) => b?.type === "text")
+      .map((b) => b.text ?? "")
+      .join("");
+    if (!text) throw new AIError("Respuesta vacía de Anthropic.", 502);
+    return { value: text, inputTokens: numero(d?.usage?.input_tokens), outputTokens: numero(d?.usage?.output_tokens) };
+  }, opts);
+}
 
-  const data = await res.json();
-  if (data?.stop_reason === "refusal") throw new AIError("El modelo declinó responder a esta petición.", 502);
-
-  const text = (data?.content ?? [])
-    .filter((b: { type?: string }) => b?.type === "text")
-    .map((b: { text?: string }) => b.text ?? "")
-    .join("");
-  if (!text) throw new AIError("Respuesta vacía de Anthropic.", 502);
-  return text;
+/** ¿Esta configuración puede transcribir audio? */
+export function canTranscribe(cfg: AIConfig | null): boolean {
+  return Boolean(cfg?.sttModel);
 }
 
 /** Transcribe audio. Solo con proveedores que exponen /audio/transcriptions. */
-export async function transcribe(cfg: AIConfig, audio: Blob, filename = "audio.webm"): Promise<string> {
+export function transcribe(cfg: AIConfig, audio: Blob, filename = "audio.webm", opts: CallOptions = {}): Promise<string> {
   if (!cfg.sttModel) {
-    throw new AIError(
-      `El proveedor ${cfg.provider} no transcribe audio. Configura AI_STT_MODEL con un proveedor que sí lo haga (por ejemplo OpenAI con whisper-1).`,
-      501,
+    return Promise.reject(
+      new AIError(
+        `El proveedor ${cfg.provider} no transcribe audio. Configura AI_STT_MODEL con un proveedor que sí lo haga (por ejemplo OpenAI con whisper-1).`,
+        501,
+      ),
     );
   }
 
@@ -195,14 +381,62 @@ export async function transcribe(cfg: AIConfig, audio: Blob, filename = "audio.w
   form.append("model", cfg.sttModel);
 
   const headers: Record<string, string> = {};
-  if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
+  if (cfg.sttApiKey) headers["Authorization"] = `Bearer ${cfg.sttApiKey}`;
 
-  const res = await fetch(`${cfg.baseUrl}/audio/transcriptions`, { method: "POST", headers, body: form });
-  if (!res.ok) throw new AIError(`La transcripción falló (${res.status}): ${await res.text()}`, 502);
+  return callModel(cfg, "transcription", cfg.sttModel, `${cfg.sttBaseUrl}/audio/transcriptions`, {
+    method: "POST",
+    headers,
+    body: form,
+  }, (data) => {
+    const d = data as { text?: unknown };
+    if (typeof d?.text !== "string") throw new AIError("Respuesta inesperada del servicio de transcripción.", 502);
+    return { value: d.text, inputTokens: null, outputTokens: null };
+  }, opts);
+}
 
-  const data = await res.json();
-  if (typeof data?.text !== "string") throw new AIError("Respuesta inesperada del servicio de transcripción.", 502);
-  return data.text;
+/**
+ * Guarda cada llamada en la tabla ai_usage con la service role (los usuarios no
+ * pueden escribir ahí). Usa la API REST directo para no amarrar esta capa al
+ * cliente de Supabase.
+ */
+export function usageRecorder(functionName: string, userId: string | null) {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  return async (u: Usage) => {
+    if (!url || !key) return;
+    const res = await fetch(`${url}/rest/v1/ai_usage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        function_name: functionName,
+        kind: u.kind,
+        provider: u.provider,
+        model: u.model,
+        input_tokens: u.inputTokens,
+        output_tokens: u.outputTokens,
+        duration_ms: u.durationMs,
+        status: u.status,
+        attempts: u.attempts,
+      }),
+    });
+    if (!res.ok) throw new Error(`ai_usage respondió ${res.status}: ${await res.text()}`);
+  };
+}
+
+/** Respuesta JSON de error con el mismo formato en todas las funciones de IA. */
+export function errorResponse(error: unknown, headers: Record<string, string>) {
+  const status = error instanceof AIError ? error.status : 500;
+  const message = error instanceof Error ? error.message : "Error desconocido";
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...headers, "Content-Type": "application/json" },
+  });
 }
 
 export const corsHeaders = {

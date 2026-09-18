@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { describeAIError, showAIErrorToast } from "@/lib/aiErrors";
 import type { Task } from "./TaskCard";
 
 interface AIAssistantProps {
@@ -32,10 +33,8 @@ export const AIAssistant = ({ tasks, onSuggest }: AIAssistantProps) => {
           description: `Revisa ${data.suggestions.length} sugerencias de IA`
         });
       }
-    } catch (error: any) {
-      toast.error("Error al obtener sugerencias", {
-        description: error.message
-      });
+    } catch (error) {
+      showAIErrorToast(await describeAIError(error));
     } finally {
       setLoading(false);
     }
