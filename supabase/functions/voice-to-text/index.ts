@@ -1,95 +1,57 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { AIError, corsHeaders, notConfigured, readConfig, transcribe } from "../_shared/ai.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+/** Convierte base64 a bytes por partes, para no reventar la memoria con audios largos. */
+function base64ABytes(base64: string, tamano = 32768): Uint8Array {
+  const partes: Uint8Array[] = [];
+  let posicion = 0;
 
-function processBase64Chunks(base64String: string, chunkSize = 32768) {
-  const chunks: Uint8Array[] = [];
-  let position = 0;
-  
-  while (position < base64String.length) {
-    const chunk = base64String.slice(position, position + chunkSize);
-    const binaryChunk = atob(chunk);
-    const bytes = new Uint8Array(binaryChunk.length);
-    
-    for (let i = 0; i < binaryChunk.length; i++) {
-      bytes[i] = binaryChunk.charCodeAt(i);
-    }
-    
-    chunks.push(bytes);
-    position += chunkSize;
+  while (posicion < base64.length) {
+    const parte = base64.slice(posicion, posicion + tamano);
+    const binario = atob(parte);
+    const bytes = new Uint8Array(binario.length);
+    for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+    partes.push(bytes);
+    posicion += tamano;
   }
 
-  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-  const result = new Uint8Array(totalLength);
+  const total = partes.reduce((suma, p) => suma + p.length, 0);
+  const salida = new Uint8Array(total);
   let offset = 0;
-
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.length;
+  for (const p of partes) {
+    salida.set(p, offset);
+    offset += p.length;
   }
-
-  return result;
+  return salida;
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    const cfg = readConfig();
+    if (!cfg) return notConfigured(corsHeaders);
+
     const { audio } = await req.json();
-    
-    if (!audio) {
-      throw new Error('No audio data provided');
+    if (!audio || typeof audio !== "string") {
+      throw new AIError("No llegó el audio a transcribir.", 400);
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    const bytes = base64ABytes(audio);
+    const texto = await transcribe(cfg, new Blob([bytes], { type: "audio/webm" }));
 
-    // Process audio in chunks
-    const binaryAudio = processBase64Chunks(audio);
-    
-    // Prepare form data
-    const formData = new FormData();
-    const blob = new Blob([binaryAudio], { type: 'audio/webm' });
-    formData.append('file', blob, 'audio.webm');
-    formData.append('model', 'whisper-1');
-
-    // Send to AI Gateway for transcription
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      },
-      body: formData,
+    return new Response(JSON.stringify({ text: texto, provider: cfg.provider }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${await response.text()}`);
-    }
-
-    const result = await response.json();
-
-    return new Response(
-      JSON.stringify({ text: result.text }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
   } catch (error) {
-    console.error('Error in voice-to-text:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    console.error("Error en voice-to-text:", error);
+    const status = error instanceof AIError ? error.status : 500;
+    const message = error instanceof Error ? error.message : "Error desconocido";
+    return new Response(JSON.stringify({ error: message }), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
