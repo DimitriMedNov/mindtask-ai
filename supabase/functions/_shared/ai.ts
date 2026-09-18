@@ -11,8 +11,10 @@
  *   AI_MODEL      el modelo de texto
  *   AI_STT_MODEL  el modelo de transcripción, si el proveedor la soporta
  *   AI_STT_BASE_URL / AI_STT_API_KEY  opcionales: mandan la transcripción a otro
- *                 servidor compatible con OpenAI (p. ej. whisper.cpp local)
- *                 mientras el texto sigue en el proveedor principal
+ *                 servidor mientras el texto sigue en el proveedor principal
+ *   AI_STT_FORMAT  "openai" (por defecto) o "whisper-cpp". whisper.cpp expone
+ *                 /inference en vez de la ruta de OpenAI, así que necesita su
+ *                 propio trato aunque el resto sea igual
  *
  * Nota sobre modelos locales: estas funciones corren en los servidores de
  * Supabase, así que no alcanzan un "localhost" de tu máquina. Para usar Ollama
@@ -74,6 +76,8 @@ export type AIConfig = {
   /** Adónde va la transcripción; por defecto, el mismo servidor que el texto. */
   sttBaseUrl: string;
   sttApiKey: string;
+  /** Qué ruta y qué respuesta espera el transcriptor. */
+  sttFormat: "openai" | "whisper-cpp";
 };
 
 /** Aplica AI_STT_BASE_URL y AI_STT_API_KEY sobre la configuración ya elegida. */
@@ -82,6 +86,9 @@ function conSTT(cfg: Omit<AIConfig, "sttBaseUrl" | "sttApiKey">): AIConfig {
     ...cfg,
     sttBaseUrl: (Deno.env.get("AI_STT_BASE_URL") ?? cfg.baseUrl).replace(/\/+$/, ""),
     sttApiKey: Deno.env.get("AI_STT_API_KEY") ?? cfg.apiKey,
+    sttFormat: (Deno.env.get("AI_STT_FORMAT") ?? "openai").trim().toLowerCase() === "whisper-cpp"
+      ? "whisper-cpp"
+      : "openai",
   };
 }
 
@@ -362,35 +369,52 @@ function chatAnthropic(cfg: AIConfig, messages: ChatMessage[], maxTokens: number
 
 /** ¿Esta configuración puede transcribir audio? */
 export function canTranscribe(cfg: AIConfig | null): boolean {
-  return Boolean(cfg?.sttModel);
+  if (!cfg) return false;
+  // whisper.cpp se levanta con su modelo ya cargado: basta con saber dónde está.
+  if (cfg.sttFormat === "whisper-cpp") return Boolean(cfg.sttBaseUrl);
+  return Boolean(cfg.sttModel);
 }
 
-/** Transcribe audio. Solo con proveedores que exponen /audio/transcriptions. */
+/**
+ * Transcribe audio. Dos formatos posibles:
+ *  - "openai": POST a /audio/transcriptions con el modelo en el formulario.
+ *  - "whisper-cpp": POST a /inference. El servidor ya trae su modelo cargado y
+ *    no acepta el campo `model`, así que se manda solo el archivo.
+ */
 export function transcribe(cfg: AIConfig, audio: Blob, filename = "audio.webm", opts: CallOptions = {}): Promise<string> {
-  if (!cfg.sttModel) {
+  if (!canTranscribe(cfg)) {
     return Promise.reject(
       new AIError(
-        `El proveedor ${cfg.provider} no transcribe audio. Configura AI_STT_MODEL con un proveedor que sí lo haga (por ejemplo OpenAI con whisper-1).`,
+        `El proveedor ${cfg.provider} no transcribe audio. Configura AI_STT_BASE_URL con un servidor de transcripción (por ejemplo whisper.cpp local) o usa un proveedor que sí la tenga.`,
         501,
       ),
     );
   }
 
+  const esWhisperCpp = cfg.sttFormat === "whisper-cpp";
+
   const form = new FormData();
   form.append("file", audio, filename);
-  form.append("model", cfg.sttModel);
+  if (esWhisperCpp) {
+    form.append("response_format", "json");
+  } else {
+    form.append("model", cfg.sttModel);
+  }
 
   const headers: Record<string, string> = {};
   if (cfg.sttApiKey) headers["Authorization"] = `Bearer ${cfg.sttApiKey}`;
 
-  return callModel(cfg, "transcription", cfg.sttModel, `${cfg.sttBaseUrl}/audio/transcriptions`, {
+  const url = esWhisperCpp ? `${cfg.sttBaseUrl}/inference` : `${cfg.sttBaseUrl}/audio/transcriptions`;
+  const modelo = esWhisperCpp ? cfg.sttModel || "whisper.cpp" : cfg.sttModel;
+
+  return callModel(cfg, "transcription", modelo, url, {
     method: "POST",
     headers,
     body: form,
   }, (data) => {
     const d = data as { text?: unknown };
     if (typeof d?.text !== "string") throw new AIError("Respuesta inesperada del servicio de transcripción.", 502);
-    return { value: d.text, inputTokens: null, outputTokens: null };
+    return { value: d.text.trim(), inputTokens: null, outputTokens: null };
   }, opts);
 }
 

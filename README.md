@@ -181,6 +181,25 @@ demo account with ten tasks, nine Pomodoro sessions and a streak already going:
 demo@mindtask.local / demo123456
 ```
 
+### Voice dictation, also local
+
+Ollama generates text but does not transcribe audio, so dictation needs its own
+engine. whisper.cpp covers it without leaving the machine:
+
+```bash
+brew install whisper-cpp
+mkdir -p ~/.whisper-models && curl -L -o ~/.whisper-models/ggml-base.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+whisper-server -m ~/.whisper-models/ggml-base.bin --port 8178 -l es
+```
+
+Then set `AI_STT_BASE_URL=http://host.docker.internal:8178` and
+`AI_STT_FORMAT=whisper-cpp`. The layer speaks both shapes: OpenAI's
+`/audio/transcriptions` and whisper.cpp's `/inference`.
+
+`ggml-base` (141 MB) is enough to try it; `ggml-small` (~466 MB) transcribes
+noticeably better in Spanish if you have the disk to spare.
+
 Everything — the database, the auth server and the model — stays on localhost. No account
 to create, no key to buy, no request leaving the machine.
 
