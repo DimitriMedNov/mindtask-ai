@@ -1,73 +1,59 @@
-# Welcome to your Lovable project
+# MindTask AI
 
-## Project info
+Task manager with an AI assistant, voice input and gamification.
 
-**URL**: https://lovable.dev/projects/ad50cfd0-48aa-4d5b-bba1-0132e1086448
+**Live demo:** https://mindtask-ai.vercel.app/
 
-## How can I edit this code?
+## What it does
 
-There are several ways of editing your application.
+**Tasks** — create, edit and organize tasks, see them in a list or in a calendar view,
+and track progress with per-user stats.
 
-**Use Lovable**
+**AI assistant** — suggests tasks and breaks down larger ones, through a Supabase Edge
+Function that calls the model server-side so the API key never reaches the browser.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ad50cfd0-48aa-4d5b-bba1-0132e1086448) and start prompting.
+**Voice** — dictate a task; the audio is transcribed by a `voice-to-text` Edge Function
+and turned into a task.
 
-Changes made via Lovable will be committed automatically to this repo.
+**Focus** — a Pomodoro timer whose sessions are stored, so the stats reflect real focused
+time rather than self-reported time.
 
-**Use your preferred IDE**
+**Gamification** — points and streaks from `user_stats`, to keep the habit going.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+**Admin** — role management screen backed by `assign-role` and `get-users` functions.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Data model
 
-Follow these steps:
+`tasks`, `pomodoro_sessions`, `user_stats` and `user_roles`, all under Row Level Security
+so each person only reaches their own rows.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Edge Functions
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+| Function | What it does |
+|---|---|
+| `ai-task-suggestions` | Generates task suggestions from the user's context |
+| `voice-to-text` | Transcribes dictated audio |
+| `assign-role` | Grants or revokes a role, admin only |
+| `get-users` | Lists users for the admin screen |
 
-# Step 3: Install the necessary dependencies.
-npm i
+Keeping these server-side is the point: the model key and the role logic stay out of the
+client bundle.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## Stack
+
+React · TypeScript · Vite · Tailwind CSS · shadcn/ui · Supabase (PostgreSQL, Auth,
+Edge Functions) · React Query
+
+## Run it locally
+
+```bash
+npm install
+cp .env.example .env    # fill in your own Supabase project values
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Roadmap
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/ad50cfd0-48aa-4d5b-bba1-0132e1086448) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Shared task lists between users
+- Push reminders
+- Tests for the role functions
