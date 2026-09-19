@@ -9,7 +9,7 @@ import { VoiceCapture } from "@/components/VoiceCapture";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { CalendarView } from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Shield, Calendar, List, Mic } from "lucide-react";
+import { LogOut, Shield, Mic, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ListaAgrupada, ListaVacia } from "@/components/ui/lista";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { esParaHoy, fechaLarga, fechaLocal } from "@/lib/fechas";
+import { isSameDay } from "date-fns";
 
 /** Guarda la fecha tal como la eligió el usuario, sin convertirla a UTC. */
 const aTextoFecha = (fecha?: Date) =>
@@ -31,7 +32,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
   const [showAdminView, setShowAdminView] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   // Se abre el espacio de las sugerencias al pedirlas, no cuando llegan: así la
   // lista no salta debajo del usuario a los 30 segundos.
   const [sugerenciasCargando, setSugerenciasCargando] = useState(false);
@@ -40,6 +40,8 @@ const Dashboard = () => {
   const [nivel, setNivel] = useState(1);
   const [racha, setRacha] = useState(0);
   const [vista, setVista] = useState<"hoy" | "pronto" | "hechas">("hoy");
+  /** Día elegido en el calendario; manda sobre el filtro mientras esté puesto. */
+  const [diaElegido, setDiaElegido] = useState<Date | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<Array<{
     title: string;
     description?: string;
@@ -329,6 +331,9 @@ const Dashboard = () => {
     { id: "hechas" as const, texto: "Hechas", lista: completedTasks, vacio: "Aún no completas ninguna." },
   ];
   const actual = vistas.find(v => v.id === vista) ?? vistas[0];
+  const mostradas = diaElegido
+    ? tasks.filter(t => t.dueDate && isSameDay(new Date(t.dueDate), diaElegido))
+    : actual.lista;
 
   const saludo = paraHoy.length === 0
     ? "Nada pendiente para hoy."
@@ -338,7 +343,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background pb-28">
       {/* Barra translúcida, como las de iOS: el contenido pasa por debajo */}
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/72 backdrop-blur-xl">
-        <div className="container mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-3">
+        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3 px-6 py-3">
           <div className="flex items-center gap-2">
             <span className="text-callout font-semibold text-foreground">MindTask</span>
             <span className="rounded-full bg-secondary px-2 py-0.5 text-caption text-muted-foreground">
@@ -363,7 +368,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto max-w-3xl px-5">
+      <main className="mx-auto w-full max-w-[1400px] px-6">
         {userRole === 'admin' && showAdminView ? (
           <div className="py-8">
             <AdminDashboard />
@@ -379,79 +384,78 @@ const Dashboard = () => {
               </p>
             </section>
 
-            {/* Control segmentado, con su cuenta al lado */}
-            <div className="sticky top-[57px] z-20 -mx-5 bg-background/80 px-5 py-2 backdrop-blur-xl">
-              <div className="flex items-center justify-between gap-3">
-                <div className="inline-flex rounded-xl bg-secondary p-1">
-                  {vistas.map(({ id, texto, lista }) => (
+            {/* Lista y calendario conviven: el calendario elige el día y la lista lo obedece */}
+            <div className="grid items-start gap-6 pb-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  {diaElegido ? (
                     <button
-                      key={id}
                       type="button"
-                      onClick={() => setVista(id)}
-                      aria-pressed={vista === id}
-                      className={cn(
-                        "rounded-lg px-3.5 py-1.5 text-footnote font-medium transition-colors",
-                        vista === id
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
+                      onClick={() => setDiaElegido(null)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-secondary px-3 py-1.5 text-footnote text-foreground"
                     >
-                      {texto}
-                      <span className="tabular ml-1.5 text-caption opacity-60">{lista.length}</span>
+                      {fechaLarga(diaElegido)}
+                      <X className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
-                  ))}
-                </div>
+                  ) : (
+                    <div className="inline-flex rounded-xl bg-secondary p-1">
+                      {vistas.map(({ id, texto, lista }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setVista(id)}
+                          aria-pressed={vista === id}
+                          className={cn(
+                            "rounded-lg px-3.5 py-1.5 text-footnote font-medium transition-colors",
+                            vista === id
+                              ? "bg-card text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {texto}
+                          <span className="tabular ml-1.5 text-caption opacity-60">{lista.length}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-                <div className="flex items-center gap-1">
-                  <AIAssistant
-                    tasks={tasks}
-                    onSuggest={handleAISuggestions}
-                    onLoadingChange={setSugerenciasCargando}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
-                    aria-label={viewMode === 'list' ? "Ver calendario" : "Ver lista"}
-                  >
-                    {viewMode === 'list' ? <Calendar className="h-5 w-5" /> : <List className="h-5 w-5" />}
-                  </Button>
-                  <AddTaskDialog onAddTask={addTask} />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 py-4">
-              {sugerenciasCargando && (
-                <div className="animate-in fade-in slide-in-from-top-1 rounded-2xl border border-border bg-card p-4 duration-200">
-                  <p className="mb-3 text-footnote text-muted-foreground">
-                    Pensando en tres tareas para ti. Con un modelo local esto puede tardar.
-                  </p>
-                  <div className="space-y-2.5">
-                    {[0, 1, 2].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+                  <div className="flex items-center gap-2">
+                    <AIAssistant
+                      tasks={tasks}
+                      onSuggest={handleAISuggestions}
+                      onLoadingChange={setSugerenciasCargando}
+                    />
+                    <AddTaskDialog onAddTask={addTask} />
                   </div>
                 </div>
-              )}
 
-              {!sugerenciasCargando && aiSuggestions.length > 0 && (
-                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                  <AISuggestions
-                    suggestions={aiSuggestions}
-                    onAccept={handleAcceptSuggestion}
-                    onReject={handleRejectSuggestion}
-                    onClearAll={handleClearSuggestions}
-                  />
-                </div>
-              )}
+                {sugerenciasCargando && (
+                  <div className="animate-in fade-in slide-in-from-top-1 rounded-2xl border border-border bg-card p-4 duration-200">
+                    <p className="mb-3 text-footnote text-muted-foreground">
+                      Pensando en tres tareas para ti. Con un modelo local esto puede tardar.
+                    </p>
+                    <div className="space-y-2.5">
+                      {[0, 1, 2].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+                    </div>
+                  </div>
+                )}
 
-              {viewMode === 'calendar' ? (
-                <CalendarView tasks={tasks} onToggle={toggleTask} onDelete={deleteTask} onEdit={editTask} onEnfocar={setEnfoque} />
-              ) : (
+                {!sugerenciasCargando && aiSuggestions.length > 0 && (
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                    <AISuggestions
+                      suggestions={aiSuggestions}
+                      onAccept={handleAcceptSuggestion}
+                      onReject={handleRejectSuggestion}
+                      onClearAll={handleClearSuggestions}
+                    />
+                  </div>
+                )}
+
                 <ListaAgrupada>
-                  {actual.lista.length === 0 ? (
-                    <ListaVacia>{actual.vacio}</ListaVacia>
+                  {mostradas.length === 0 ? (
+                    <ListaVacia>{diaElegido ? "Nada agendado para este día." : actual.vacio}</ListaVacia>
                   ) : (
-                    actual.lista.map(task => (
+                    mostradas.map(task => (
                       <TaskCard
                         key={task.id}
                         task={task}
@@ -464,7 +468,17 @@ const Dashboard = () => {
                     ))
                   )}
                 </ListaAgrupada>
-              )}
+              </div>
+
+              {/* El calendario se queda a la vista mientras se recorre la lista */}
+              <div className="lg:sticky lg:top-[76px]">
+                <CalendarView
+                  tasks={tasks}
+                  compacto
+                  elegido={diaElegido ?? undefined}
+                  onElegir={setDiaElegido}
+                />
+              </div>
             </div>
           </>
         )}

@@ -131,7 +131,7 @@ export const AdminDashboard = () => {
 
       <UserRoleManager />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 xl:gap-8">
         <ListaAgrupada titulo="Usuarios" descripcion="Cuánto avanza cada quien">
           {users.length === 0 ? (
             <ListaVacia>Todavía no hay usuarios registrados.</ListaVacia>

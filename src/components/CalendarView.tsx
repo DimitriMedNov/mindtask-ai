@@ -21,10 +21,15 @@ import { cn } from "@/lib/utils";
 
 interface CalendarViewProps {
   tasks: Task[];
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
+  onToggle?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onEdit?: (id: string, updates: Partial<Task>) => void;
   onEnfocar?: (task: Task) => void;
+  /** Solo la cuadrícula, para vivir al lado de la lista en vez de sustituirla. */
+  compacto?: boolean;
+  /** Día elegido desde fuera, para que calendario y lista hablen del mismo día. */
+  elegido?: Date;
+  onElegir?: (dia: Date) => void;
 }
 
 const INICIALES = ["L", "M", "X", "J", "V", "S", "D"];
@@ -41,9 +46,23 @@ const MAXIMO_PUNTOS = 3;
  * cuadrícula y repetían lo que ya dice la pantalla principal. Aquí el calendario
  * hace una cosa: mostrar qué días tienen trabajo y dejar ver el día que elijas.
  */
-export const CalendarView = ({ tasks, onToggle, onDelete, onEdit, onEnfocar }: CalendarViewProps) => {
+export const CalendarView = ({
+  tasks,
+  onToggle,
+  onDelete,
+  onEdit,
+  onEnfocar,
+  compacto = false,
+  elegido: elegidoFuera,
+  onElegir,
+}: CalendarViewProps) => {
   const [mes, setMes] = useState(() => startOfMonth(new Date()));
-  const [elegido, setElegido] = useState<Date>(() => new Date());
+  const [elegidoDentro, setElegidoDentro] = useState<Date>(() => new Date());
+  const elegido = elegidoFuera ?? elegidoDentro;
+  const elegir = (dia: Date) => {
+    setElegidoDentro(dia);
+    onElegir?.(dia);
+  };
 
   const dias = useMemo(() => {
     const inicio = startOfWeek(startOfMonth(mes), { weekStartsOn: 1 });
@@ -81,7 +100,7 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit, onEnfocar }: C
               size="sm"
               onClick={() => {
                 setMes(startOfMonth(hoy));
-                setElegido(hoy);
+                elegir(hoy);
               }}
             >
               Hoy
@@ -114,11 +133,12 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit, onEnfocar }: C
               <button
                 key={dia.toISOString()}
                 type="button"
-                onClick={() => setElegido(dia)}
+                onClick={() => elegir(dia)}
                 aria-label={format(dia, "d 'de' MMMM", { locale: es })}
                 aria-pressed={esElegido}
                 className={cn(
-                  "flex h-14 flex-col items-center justify-center gap-1 rounded-xl transition-colors",
+                  "flex flex-col items-center justify-center gap-1 rounded-xl transition-colors",
+                  compacto ? "h-11" : "h-14",
                   !delMes && "text-muted-foreground/35",
                   delMes && "text-foreground hover:bg-muted/60",
                   esElegido && "bg-primary text-primary-foreground hover:bg-primary",
@@ -148,6 +168,7 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit, onEnfocar }: C
         </div>
       </div>
 
+      {!compacto && (
       <ListaAgrupada
         titulo={
           isSameDay(elegido, hoy)
@@ -163,14 +184,15 @@ export const CalendarView = ({ tasks, onToggle, onDelete, onEdit, onEnfocar }: C
             <TaskCard
               key={task.id}
               task={task}
-              onToggle={onToggle}
-              onDelete={onDelete}
+              onToggle={onToggle ?? (() => {})}
+              onDelete={onDelete ?? (() => {})}
               onEdit={onEdit}
               onEnfocar={onEnfocar ? () => onEnfocar(task) : undefined}
             />
           ))
         )}
       </ListaAgrupada>
+      )}
     </div>
   );
 };
