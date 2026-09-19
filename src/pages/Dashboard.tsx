@@ -13,6 +13,7 @@ import { LogOut, Shield, Mic, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Anillo, ListaAgrupada, ListaVacia } from "@/components/ui/lista";
+import { Logotipo } from "@/components/Marca";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -360,9 +361,11 @@ const Dashboard = () => {
       {/* Barra translúcida, como las de iOS: el contenido pasa por debajo */}
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/72 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3 px-6 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-callout font-semibold text-foreground">MindTask</span>
-            <span className="rounded-full bg-secondary px-2 py-0.5 text-caption text-muted-foreground">
+          <div className="flex items-center gap-2.5">
+            <Logotipo />
+            {/* El punto verde dice, sin explicarlo, que nada sale de esta máquina */}
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2 py-0.5 text-caption text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               local
             </span>
           </div>
@@ -394,7 +397,7 @@ const Dashboard = () => {
             {/* Título grande, como el de una pantalla de iOS antes de hacer scroll */}
             <section className="pb-6 pt-10">
               <p className="text-footnote text-muted-foreground">{fechaLarga()}</p>
-              <h1 className="mt-1 text-largeTitle font-bold tracking-tight text-foreground">{saludo}</h1>
+              <h1 className="display mt-1 text-largeTitle text-foreground">{saludo}</h1>
             </section>
 
             {/* Lista y calendario conviven: el calendario elige el día y la lista lo obedece */}

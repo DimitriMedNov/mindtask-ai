@@ -91,7 +91,7 @@ export const CalendarView = ({
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         {/* Mes y navegación */}
         <div className="flex items-center justify-between px-4 py-3">
-          <h2 className="text-title3 font-semibold capitalize text-foreground">
+          <h2 className="display text-title3 capitalize text-foreground">
             {format(mes, "LLLL yyyy", { locale: es })}
           </h2>
           <div className="flex items-center gap-1">

@@ -115,7 +115,7 @@ export const AdminDashboard = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-title1 font-semibold text-foreground">Panel de administración</h2>
+        <h2 className="display text-title1 text-foreground">Panel de administración</h2>
         <p className="text-footnote text-muted-foreground">Todo el sistema, de un vistazo</p>
       </div>
 
@@ -124,7 +124,7 @@ export const AdminDashboard = () => {
         {resumen.map(({ etiqueta, valor }) => (
           <div key={etiqueta} className="px-5 py-4">
             <p className="text-caption uppercase tracking-wide text-muted-foreground">{etiqueta}</p>
-            <p className="tabular mt-1 text-title1 font-semibold text-foreground">{valor}</p>
+            <p className="tabular mt-1 text-title1 font-medium text-foreground">{valor}</p>
           </div>
         ))}
       </div>

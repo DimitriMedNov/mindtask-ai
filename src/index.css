@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,49 +12,53 @@ All colors MUST be HSL.
   :root {
     color-scheme: light;
 
-    --background: 210 40% 98%;
-    --foreground: 220 15% 15%;
+    /* Papel cálido en vez del gris azulado de siempre: la app se siente
+       cuaderno, no panel de control. */
+    --background: 40 30% 97%;
+    --foreground: 160 18% 9%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 15% 15%;
+    --card: 40 40% 99%;
+    --card-foreground: 160 18% 9%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 15%;
+    --popover: 40 40% 99%;
+    --popover-foreground: 160 18% 9%;
 
     /* Primario oscurecido para que el texto blanco encima llegue a 4.87:1.
        El cian brillante de la marca vive en --brand, para piezas grandes
        (el temporizador, los iconos) donde el mínimo es 3:1. */
-    --primary: 186 94% 28%;
+    /* Verde bosque: 6.39:1 con texto blanco encima. Es el color del enfoque
+       y el único que se usa para lo accionable. */
+    --primary: 162 62% 26%;
     --primary-foreground: 0 0% 100%;
-    --brand: 186 94% 42%;
-    --brand-foreground: 220 20% 10%;
+    --brand: 162 52% 38%;
+    --brand-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 220 15% 15%;
+    --secondary: 40 22% 92%;
+    --secondary-foreground: 160 18% 9%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 220 12% 38%;
+    --muted: 40 22% 92%;
+    --muted-foreground: 160 8% 38%;
 
-    /* El ámbar necesita texto oscuro encima: con blanco daba 2.05:1 */
-    --accent: 35 100% 55%;
-    --accent-foreground: 30 45% 12%;
+    /* Brasa: reservada para lo vencido. Si aparece, urge. */
+    --accent: 18 78% 42%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 42%;
+    --destructive: 18 78% 42%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 186 94% 32%;
+    --border: 40 18% 87%;
+    --input: 40 18% 87%;
+    --ring: 162 62% 30%;
 
-    --success: 142 72% 27%;
+    --success: 162 62% 26%;
     --success-foreground: 0 0% 100%;
 
     --radius: 0.75rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(186 94% 32%), hsl(186 94% 42%));
-    --gradient-accent: linear-gradient(135deg, hsl(35 100% 55%), hsl(35 100% 65%));
-    --shadow-elegant: 0 10px 40px -12px hsl(186 94% 28% / 0.22);
-    --shadow-card: 0 1px 2px hsl(220 15% 15% / 0.04), 0 8px 24px -16px hsl(220 15% 15% / 0.24);
+    --gradient-primary: linear-gradient(135deg, hsl(162 62% 26%), hsl(162 52% 38%));
+    --gradient-accent: linear-gradient(135deg, hsl(18 78% 42%), hsl(18 78% 52%));
+    --shadow-elegant: 0 10px 40px -12px hsl(162 62% 20% / 0.22);
+    --shadow-card: 0 1px 2px hsl(160 18% 9% / 0.05), 0 8px 24px -16px hsl(160 18% 9% / 0.22);
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Movimiento: una sola curva y tres duraciones para toda la app */
@@ -74,42 +80,44 @@ All colors MUST be HSL.
   .dark {
     color-scheme: dark;
 
-    --background: 220 20% 10%;
-    --foreground: 210 30% 96%;
+    /* Carbón con tinte verde, no azul: el tema oscuro es el mismo mundo de noche. */
+    --background: 160 14% 7%;
+    --foreground: 40 18% 94%;
 
-    --card: 220 17% 14%;
-    --card-foreground: 210 30% 96%;
+    --card: 162 12% 11%;
+    --card-foreground: 40 18% 94%;
 
-    --popover: 220 17% 14%;
-    --popover-foreground: 210 30% 96%;
+    --popover: 162 12% 11%;
+    --popover-foreground: 40 18% 94%;
 
     /* En oscuro se invierte: cian claro con texto tinta encima (10.98:1) */
-    --primary: 186 80% 63%;
-    --primary-foreground: 220 20% 10%;
-    --brand: 186 80% 63%;
-    --brand-foreground: 220 20% 10%;
+    /* Verde menta con texto tinta encima: 10.51:1 */
+    --primary: 162 58% 66%;
+    --primary-foreground: 160 18% 9%;
+    --brand: 162 58% 66%;
+    --brand-foreground: 160 18% 9%;
 
-    --secondary: 220 15% 19%;
-    --secondary-foreground: 210 30% 96%;
+    --secondary: 162 10% 17%;
+    --secondary-foreground: 40 18% 94%;
 
-    --muted: 220 15% 19%;
-    --muted-foreground: 215 15% 68%;
+    --muted: 162 10% 17%;
+    --muted-foreground: 150 8% 65%;
 
-    --accent: 35 92% 62%;
-    --accent-foreground: 30 45% 12%;
+    --accent: 18 82% 62%;
+    --accent-foreground: 160 18% 9%;
 
-    --destructive: 0 72% 62%;
-    --destructive-foreground: 220 20% 10%;
+    --destructive: 18 82% 62%;
+    --destructive-foreground: 160 18% 9%;
 
-    --border: 220 14% 22%;
-    --input: 220 14% 22%;
-    --ring: 186 80% 63%;
+    --border: 162 9% 20%;
+    --input: 162 9% 20%;
+    --ring: 162 58% 66%;
 
-    --success: 142 62% 55%;
-    --success-foreground: 220 20% 10%;
+    --success: 162 58% 60%;
+    --success-foreground: 160 18% 9%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(186 80% 55%), hsl(186 80% 68%));
-    --gradient-accent: linear-gradient(135deg, hsl(35 92% 58%), hsl(35 92% 68%));
+    --gradient-primary: linear-gradient(135deg, hsl(162 58% 52%), hsl(162 58% 70%));
+    --gradient-accent: linear-gradient(135deg, hsl(18 82% 55%), hsl(18 82% 68%));
     --shadow-elegant: 0 10px 40px -12px hsl(0 0% 0% / 0.5);
     --shadow-card: 0 1px 2px hsl(0 0% 0% / 0.4), 0 8px 24px -16px hsl(0 0% 0% / 0.6);
 
@@ -137,7 +145,16 @@ All colors MUST be HSL.
 
   /* Los números de estadísticas y del temporizador se alinean en columna */
   .tabular {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Títulos con una grotesca de carácter; el cuerpo se queda neutro para leer */
+  .display {
+    font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   /* Quien pidió menos movimiento en su sistema no ve animaciones */
@@ -159,4 +176,4 @@ All colors MUST be HSL.
   }
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+

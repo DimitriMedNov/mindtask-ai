@@ -26,7 +26,7 @@ export function ListaAgrupada({
       {(titulo || acciones) && (
         <header className="mb-2 flex items-end justify-between gap-3 px-1">
           <div>
-            {titulo && <h2 className="text-title3 font-semibold text-foreground">{titulo}</h2>}
+            {titulo && <h2 className="display text-title3 text-foreground">{titulo}</h2>}
             {descripcion && <p className="text-footnote text-muted-foreground">{descripcion}</p>}
           </div>
           {acciones}
