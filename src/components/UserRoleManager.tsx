@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Fila, ListaAgrupada, ListaVacia } from "@/components/ui/lista";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, User, Loader2, RefreshCw } from "lucide-react";
@@ -107,65 +107,43 @@ export const UserRoleManager = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        </CardContent>
-      </Card>
+      <ListaAgrupada titulo="Roles" descripcion="Quién puede administrar el sistema">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </ListaAgrupada>
     );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-primary" />
-                Gestión de Roles
-              </CardTitle>
-              <CardDescription>
-                Asigna roles de admin o usuario normal a los miembros
-              </CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={loadUsers}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Recargar
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {users.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No hay usuarios registrados
-              </div>
-            ) : (
-              users.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className={`p-2 rounded-full ${user.role === 'admin' ? 'bg-primary/10' : 'bg-secondary/10'}`}>
-                      {user.role === 'admin' ? (
-                        <Shield className="h-4 w-4 text-primary" />
-                      ) : (
-                        <User className="h-4 w-4 text-secondary" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{user.email}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {user.id}
+      <ListaAgrupada
+        titulo="Roles"
+        descripcion="Quién puede administrar el sistema"
+        acciones={
+          <Button variant="ghost" size="sm" onClick={loadUsers} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Recargar
+          </Button>
+        }
+      >
+        {users.length === 0 ? (
+          <ListaVacia>No hay usuarios registrados.</ListaVacia>
+        ) : (
+          users.map((user) => (
+                <Fila key={user.id} className="justify-between">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    {user.role === 'admin' ? (
+                      <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <User className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-callout text-foreground">{user.email}</p>
+                      <p className="text-caption text-muted-foreground">
+                        {user.role === 'admin' ? 'Administrador' : 'Usuario'}
                       </p>
                     </div>
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                      {user.role === 'admin' ? 'Admin' : 'Usuario'}
-                    </Badge>
                   </div>
 
                   <div className="ml-4">
@@ -187,12 +165,10 @@ export const UserRoleManager = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                </Fila>
               ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        )}
+      </ListaAgrupada>
 
       <AlertDialog open={confirmDialog.open} onOpenChange={(open) => 
         setConfirmDialog({ ...confirmDialog, open })

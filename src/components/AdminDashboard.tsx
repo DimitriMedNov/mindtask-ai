@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Shield, Users, CheckSquare, TrendingUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Fila, ListaAgrupada, ListaVacia } from "@/components/ui/lista";
+import { cn } from "@/lib/utils";
 import { UserRoleManager } from "./UserRoleManager";
 import type { Task } from "./TaskCard";
 
@@ -100,130 +99,92 @@ export const AdminDashboard = () => {
   const completedTasks = allTasks.filter(t => t.completed).length;
   const completionRate = allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0;
 
+  const resumen = [
+    { etiqueta: "Usuarios", valor: users.length },
+    { etiqueta: "Tareas", valor: allTasks.length },
+    { etiqueta: "Completadas", valor: completedTasks },
+    { etiqueta: "Avance", valor: `${completionRate}%` },
+  ];
+
+  const ETIQUETA_PRIORIDAD: Record<string, string> = {
+    high: "Alta",
+    medium: "Media",
+    low: "Baja",
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Shield className="h-8 w-8 text-primary" />
-        <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
-            Panel de Administrador
-          </h2>
-          <p className="text-muted-foreground">Vista completa del sistema</p>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-title1 font-semibold text-foreground">Panel de administración</h2>
+        <p className="text-footnote text-muted-foreground">Todo el sistema, de un vistazo</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-3xl font-bold">{users.length}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Tareas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <CheckSquare className="h-4 w-4 text-muted-foreground" />
-              <span className="text-3xl font-bold">{allTasks.length}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Completadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <CheckSquare className="h-4 w-4 text-success" />
-              <span className="text-3xl font-bold text-success">{completedTasks}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Tasa de Completitud</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="text-3xl font-bold">{completionRate}%</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Los cuatro números en una sola superficie: son un resumen, no cuatro tarjetas */}
+      <div className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card sm:grid-cols-4 sm:divide-y-0">
+        {resumen.map(({ etiqueta, valor }) => (
+          <div key={etiqueta} className="px-5 py-4">
+            <p className="text-caption uppercase tracking-wide text-muted-foreground">{etiqueta}</p>
+            <p className="tabular mt-1 text-title1 font-semibold text-foreground">{valor}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="mb-6">
-        <UserRoleManager />
-      </div>
+      <UserRoleManager />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Usuarios del Sistema</CardTitle>
-            <CardDescription>Estadísticas de cada usuario</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-3">
-                {users.map(user => (
-                  <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{user.email}</p>
-                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                          {user.role === 'admin' ? 'Admin' : 'Usuario'}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {user.completedTasks}/{user.totalTasks} tareas completadas
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ListaAgrupada titulo="Usuarios" descripcion="Cuánto avanza cada quien">
+          {users.length === 0 ? (
+            <ListaVacia>Todavía no hay usuarios registrados.</ListaVacia>
+          ) : (
+            <ScrollArea className="h-[420px]">
+              {users.map(user => {
+                const avance = user.totalTasks > 0
+                  ? Math.round((user.completedTasks / user.totalTasks) * 100)
+                  : 0;
+                return (
+                  <Fila key={user.id} className="justify-between border-b border-border last:border-b-0">
+                    <div className="min-w-0">
+                      <p className="truncate text-callout text-foreground">{user.email}</p>
+                      <p className="text-caption text-muted-foreground">
+                        {user.completedTasks} de {user.totalTasks} tareas
+                        {user.role === "admin" && " · Administrador"}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold">
-                        {user.totalTasks > 0 ? Math.round((user.completedTasks / user.totalTasks) * 100) : 0}%
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    <span className="tabular text-callout font-medium text-foreground">{avance}%</span>
+                  </Fila>
+                );
+              })}
             </ScrollArea>
-          </CardContent>
-        </Card>
+          )}
+        </ListaAgrupada>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Tareas Recientes del Sistema</CardTitle>
-            <CardDescription>Últimas tareas de todos los usuarios</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-2">
-                {allTasks.slice(0, 20).map(task => (
-                  <div key={task.id} className="flex items-center gap-2 p-2 border rounded">
-                    <div className={`w-2 h-2 rounded-full ${task.completed ? 'bg-success' : 'bg-muted'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{task.title}</p>
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="text-xs">{task.category}</Badge>
-                        <Badge variant="outline" className="text-xs">{task.priority}</Badge>
-                      </div>
-                    </div>
+        <ListaAgrupada titulo="Actividad reciente" descripcion="Últimas tareas de todos">
+          {allTasks.length === 0 ? (
+            <ListaVacia>Sin tareas todavía.</ListaVacia>
+          ) : (
+            <ScrollArea className="h-[420px]">
+              {allTasks.slice(0, 20).map(task => (
+                <Fila key={task.id} className="border-b border-border last:border-b-0">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "h-2 w-2 shrink-0 rounded-full",
+                      task.completed ? "bg-success" : "bg-muted-foreground/40",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("truncate text-callout text-foreground", task.completed && "text-muted-foreground line-through")}>
+                      {task.title}
+                    </p>
+                    <p className="text-caption text-muted-foreground">
+                      {task.category} · Prioridad {ETIQUETA_PRIORIDAD[task.priority] ?? task.priority}
+                    </p>
                   </div>
-                ))}
-              </div>
+                </Fila>
+              ))}
             </ScrollArea>
-          </CardContent>
-        </Card>
+          )}
+        </ListaAgrupada>
       </div>
     </div>
   );

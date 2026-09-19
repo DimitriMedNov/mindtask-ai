@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Shield, Calendar, List, Mic } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ListaAgrupada, ListaVacia } from "@/components/ui/lista";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fechaLocal } from "@/lib/fechas";
@@ -446,20 +447,22 @@ const Dashboard = () => {
                 />
               ) : (
                 filtros.map(({ valor, lista, vacio }) => (
-                  <TabsContent key={valor} value={valor} className="space-y-2">
-                    {lista.length === 0 ? (
-                      <p className="py-12 text-center text-body text-muted-foreground">{vacio}</p>
-                    ) : (
-                      lista.map(task => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onToggle={toggleTask}
-                          onDelete={deleteTask}
-                          onEdit={editTask}
-                        />
-                      ))
-                    )}
+                  <TabsContent key={valor} value={valor}>
+                    <ListaAgrupada>
+                      {lista.length === 0 ? (
+                        <ListaVacia>{vacio}</ListaVacia>
+                      ) : (
+                        lista.map(task => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            onToggle={toggleTask}
+                            onDelete={deleteTask}
+                            onEdit={editTask}
+                          />
+                        ))
+                      )}
+                    </ListaAgrupada>
                   </TabsContent>
                 ))
               )}

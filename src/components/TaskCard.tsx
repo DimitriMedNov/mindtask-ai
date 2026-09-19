@@ -51,16 +51,16 @@ export function TaskCard({ task, onToggle, onDelete, onEdit }: TaskCardProps) {
   return (
     <div
       className={cn(
-        "group relative flex items-start gap-3 rounded-xl border border-border/70 bg-card py-3 pl-4 pr-3",
-        "transition-[opacity,transform,box-shadow] duration-200 hover:border-border hover:shadow-sm",
-        borrando && "scale-[0.99] opacity-0",
-        task.completed && "opacity-65",
+        "group relative flex items-start gap-3 bg-card py-3 pl-5 pr-3 transition-colors duration-150",
+        "hover:bg-muted/40",
+        borrando && "opacity-0",
+        task.completed && "opacity-60",
       )}
     >
       {/* La franja de prioridad sustituye a la insignia: mismo dato, menos ruido */}
       <span
         aria-hidden="true"
-        className={cn("absolute inset-y-2 left-0 w-[3px] rounded-full", franjaPrioridad[task.priority])}
+        className={cn("absolute inset-y-2.5 left-0 w-[3px] rounded-r-full", franjaPrioridad[task.priority])}
       />
 
       <Checkbox
