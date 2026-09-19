@@ -79,3 +79,34 @@ export function FilaDato({ etiqueta, valor }: { etiqueta: string; valor: ReactNo
 export function ListaVacia({ children }: { children: ReactNode }) {
   return <p className="px-4 py-10 text-center text-footnote text-muted-foreground">{children}</p>;
 }
+
+/** Anillo de avance: el mismo dato que una barra, pero ocupa menos y se lee igual. */
+export function Anillo({ avance, tamano = 52 }: { avance: number; tamano?: number }) {
+  const radio = (tamano - 6) / 2;
+  const vuelta = 2 * Math.PI * radio;
+
+  return (
+    <svg width={tamano} height={tamano} viewBox={`0 0 ${tamano} ${tamano}`} aria-hidden="true">
+      <circle
+        cx={tamano / 2}
+        cy={tamano / 2}
+        r={radio}
+        fill="none"
+        stroke="hsl(var(--secondary))"
+        strokeWidth="6"
+      />
+      <circle
+        cx={tamano / 2}
+        cy={tamano / 2}
+        r={radio}
+        fill="none"
+        stroke="hsl(var(--primary))"
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeDasharray={`${vuelta * Math.min(1, Math.max(0, avance))} ${vuelta}`}
+        transform={`rotate(-90 ${tamano / 2} ${tamano / 2})`}
+        style={{ transition: "stroke-dasharray 400ms var(--ease, ease)" }}
+      />
+    </svg>
+  );
+}

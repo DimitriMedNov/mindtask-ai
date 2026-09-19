@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Shield, Mic, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ListaAgrupada, ListaVacia } from "@/components/ui/lista";
+import { Anillo, ListaAgrupada, ListaVacia } from "@/components/ui/lista";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -322,22 +322,38 @@ const Dashboard = () => {
   const completedTasks = tasks.filter(task => task.completed);
 
   // "Hoy" contesta una sola pregunta: qué toca ahora. Lo demás se asoma apenas.
-  const paraHoy = activeTasks.filter(t => esParaHoy(t.dueDate));
+  const hoyEs = new Date();
+  const vencidas = activeTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date(hoyEs.toDateString()));
+  const paraHoy = activeTasks.filter(t => esParaHoy(t.dueDate) && !vencidas.includes(t));
   const pronto = activeTasks.filter(t => !esParaHoy(t.dueDate));
+  const sinFecha = activeTasks.filter(t => !t.dueDate);
+  const hechasHoy = completedTasks.filter(t => isSameDay(new Date(t.createdAt), hoyEs));
 
-  const vistas = [
-    { id: "hoy" as const, texto: "Hoy", lista: paraHoy, vacio: "Nada para hoy. Disfrútalo." },
-    { id: "pronto" as const, texto: "Pronto", lista: pronto, vacio: "No hay nada más adelante." },
-    { id: "hechas" as const, texto: "Hechas", lista: completedTasks, vacio: "Aún no completas ninguna." },
-  ];
-  const actual = vistas.find(v => v.id === vista) ?? vistas[0];
-  const mostradas = diaElegido
+  const delDia = diaElegido
     ? tasks.filter(t => t.dueDate && isSameDay(new Date(t.dueDate), diaElegido))
-    : actual.lista;
+    : [];
 
-  const saludo = paraHoy.length === 0
-    ? "Nada pendiente para hoy."
-    : `${paraHoy.length} ${paraHoy.length === 1 ? "cosa" : "cosas"} para hoy.`;
+  // El anillo del encabezado: cuánto del día ya está resuelto.
+  const totalHoy = paraHoy.length + vencidas.length + hechasHoy.length;
+  const avanceHoy = totalHoy > 0 ? hechasHoy.length / totalHoy : 0;
+
+  const saludo = vencidas.length > 0
+    ? `${vencidas.length} ${vencidas.length === 1 ? "tarea se te pasó" : "tareas se te pasaron"}.`
+    : paraHoy.length === 0
+      ? hechasHoy.length > 0 ? "Día resuelto." : "Nada pendiente para hoy."
+      : `${paraHoy.length} ${paraHoy.length === 1 ? "cosa" : "cosas"} para hoy.`;
+
+  const renglon = (task: Task) => (
+    <TaskCard
+      key={task.id}
+      task={task}
+      onToggle={toggleTask}
+      onDelete={deleteTask}
+      onEdit={editTask}
+      onEnfocar={() => setEnfoque(task)}
+      enfocada={enfoque?.id === task.id}
+    />
+  );
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -379,14 +395,11 @@ const Dashboard = () => {
             <section className="pb-6 pt-10">
               <p className="text-footnote text-muted-foreground">{fechaLarga()}</p>
               <h1 className="mt-1 text-largeTitle font-bold tracking-tight text-foreground">{saludo}</h1>
-              <p className="mt-2 text-footnote text-muted-foreground">
-                Nivel {nivel} · racha de {racha} {racha === 1 ? "día" : "días"} · {completedTasks.length} hechas
-              </p>
             </section>
 
             {/* Lista y calendario conviven: el calendario elige el día y la lista lo obedece */}
             <div className="grid items-start gap-6 pb-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   {diaElegido ? (
                     <button
@@ -398,25 +411,9 @@ const Dashboard = () => {
                       <X className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
                   ) : (
-                    <div className="inline-flex rounded-xl bg-secondary p-1">
-                      {vistas.map(({ id, texto, lista }) => (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => setVista(id)}
-                          aria-pressed={vista === id}
-                          className={cn(
-                            "rounded-lg px-3.5 py-1.5 text-footnote font-medium transition-colors",
-                            vista === id
-                              ? "bg-card text-foreground shadow-sm"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          {texto}
-                          <span className="tabular ml-1.5 text-caption opacity-60">{lista.length}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <p className="text-footnote text-muted-foreground">
+                      {activeTasks.length} {activeTasks.length === 1 ? "tarea abierta" : "tareas abiertas"}
+                    </p>
                   )}
 
                   <div className="flex items-center gap-2">
@@ -451,33 +448,94 @@ const Dashboard = () => {
                   </div>
                 )}
 
-                <ListaAgrupada>
-                  {mostradas.length === 0 ? (
-                    <ListaVacia>{diaElegido ? "Nada agendado para este día." : actual.vacio}</ListaVacia>
-                  ) : (
-                    mostradas.map(task => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        onToggle={toggleTask}
-                        onDelete={deleteTask}
-                        onEdit={editTask}
-                        onEnfocar={() => setEnfoque(task)}
-                        enfocada={enfoque?.id === task.id}
-                      />
-                    ))
-                  )}
-                </ListaAgrupada>
+                {diaElegido ? (
+                  <ListaAgrupada titulo={fechaLarga(diaElegido)} descripcion={`${delDia.length} ${delDia.length === 1 ? "tarea" : "tareas"}`}>
+                    {delDia.length === 0 ? (
+                      <ListaVacia>Nada agendado para este día.</ListaVacia>
+                    ) : (
+                      delDia.map(renglon)
+                    )}
+                  </ListaAgrupada>
+                ) : (
+                  <>
+                    {/* Todo apilado: nada se esconde detrás de un filtro */}
+                    {vencidas.length > 0 && (
+                      <ListaAgrupada titulo="Se te pasaron" descripcion="Muévelas de fecha o resuélvelas">
+                        {vencidas.map(renglon)}
+                      </ListaAgrupada>
+                    )}
+
+                    <ListaAgrupada titulo="Hoy">
+                      {paraHoy.length === 0 ? (
+                        <div className="px-4 py-8 text-center">
+                          <p className="text-body text-foreground">
+                            {hechasHoy.length > 0 ? "Ya terminaste lo de hoy." : "No tienes nada agendado hoy."}
+                          </p>
+                          <p className="mx-auto mt-1 max-w-sm text-footnote text-muted-foreground">
+                            Escribe lo siguiente que tengas en la cabeza, o deja que la IA te proponga algo.
+                          </p>
+                          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                            <AddTaskDialog onAddTask={addTask} />
+                            <Button variant="outline" size="sm" onClick={() => setDictando(true)} className="gap-2">
+                              <Mic className="h-4 w-4" />
+                              Dictar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        paraHoy.map(renglon)
+                      )}
+                    </ListaAgrupada>
+
+                    {pronto.length > 0 && (
+                      <ListaAgrupada titulo="Pronto" descripcion="Lo que viene después de hoy">
+                        {pronto.slice(0, 6).map(renglon)}
+                      </ListaAgrupada>
+                    )}
+
+                    {sinFecha.length > 0 && (
+                      <ListaAgrupada titulo="Sin fecha" descripcion="Ponles una para que aparezcan en el día que toca">
+                        {sinFecha.slice(0, 5).map(renglon)}
+                      </ListaAgrupada>
+                    )}
+
+                    {completedTasks.length > 0 && (
+                      <details className="group rounded-2xl border border-border bg-card">
+                        <summary className="cursor-pointer list-none px-4 py-3 text-footnote text-muted-foreground transition-colors hover:text-foreground">
+                          {completedTasks.length} {completedTasks.length === 1 ? "hecha" : "hechas"} · ver
+                        </summary>
+                        <div className="divide-y divide-border border-t border-border">
+                          {completedTasks.slice(0, 10).map(renglon)}
+                        </div>
+                      </details>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* El calendario se queda a la vista mientras se recorre la lista */}
-              <div className="lg:sticky lg:top-[76px]">
+              <div className="space-y-4 lg:sticky lg:top-[76px]">
                 <CalendarView
                   tasks={tasks}
                   compacto
                   elegido={diaElegido ?? undefined}
                   onElegir={setDiaElegido}
                 />
+
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="text-caption uppercase tracking-wide text-muted-foreground">Tu día</p>
+                  <div className="mt-3 flex items-center gap-4">
+                    <Anillo avance={avanceHoy} />
+                    <div className="space-y-0.5">
+                      <p className="text-callout text-foreground">
+                        {hechasHoy.length} de {totalHoy || 0} hechas
+                      </p>
+                      <p className="text-caption text-muted-foreground">
+                        Nivel {nivel} · racha de {racha} {racha === 1 ? "día" : "días"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </>
