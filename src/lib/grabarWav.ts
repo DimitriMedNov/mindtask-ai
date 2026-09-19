@@ -18,6 +18,10 @@ export type OpcionesGrabacion = {
 export type Grabacion = {
   /** Corta la grabación, suelta el micrófono y devuelve el WAV. */
   detener: () => Promise<Blob>;
+  /** WAV de lo grabado hasta ahora, sin cortar. Sirve para ir transcribiendo en vivo. */
+  instantanea: () => Blob;
+  /** Segundos grabados hasta ahora. */
+  duracion: () => number;
   /** Suelta el micrófono sin producir nada, por si el usuario cancela. */
   cancelar: () => void;
 };
@@ -64,14 +68,22 @@ export async function grabarWav({ onNivel }: OpcionesGrabacion = {}): Promise<Gr
     void contexto.close();
   };
 
+  const armar = () => {
+    const muestras = unir(trozos);
+    return aWav(remuestrear(muestras, contexto.sampleRate, FRECUENCIA_DESTINO), FRECUENCIA_DESTINO);
+  };
+
   return {
     detener: async () => {
-      const frecuenciaOriginal = contexto.sampleRate;
+      const wav = armar();
       soltar();
-      const muestras = unir(trozos);
-      const reducidas = remuestrear(muestras, frecuenciaOriginal, FRECUENCIA_DESTINO);
-      return aWav(reducidas, FRECUENCIA_DESTINO);
+      return wav;
     },
+    // Se arma sobre lo acumulado, sin tocar la grabación: Whisper no transcribe
+    // en vivo, así que se le manda todo lo dicho hasta el momento y se reemplaza
+    // el texto. Sale más coherente que pegar pedacitos sueltos.
+    instantanea: armar,
+    duracion: () => trozos.reduce((suma, t) => suma + t.length, 0) / contexto.sampleRate,
     cancelar: soltar,
   };
 }

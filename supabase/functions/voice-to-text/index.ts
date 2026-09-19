@@ -69,10 +69,16 @@ serve(async (req) => {
 
     if (!cfg) return notConfigured(corsHeaders);
 
-    const limitada = await checkQuota(req, "voice-to-text", corsHeaders);
-    if (limitada) return limitada;
+    const { audio, mimeType, parcial } = await req.json();
 
-    const { audio, mimeType } = await req.json();
+    // Mientras alguien dicta se mandan avances cada pocos segundos para que el
+    // texto se vea aparecer. Esos avances no gastan cupo: si contaran, una sola
+    // frase de quince segundos consumiría media docena de usos.
+    if (!parcial) {
+      const limitada = await checkQuota(req, "voice-to-text", corsHeaders);
+      if (limitada) return limitada;
+    }
+
     if (!audio || typeof audio !== "string") {
       throw new AIError("No llegó el audio a transcribir.", 400);
     }
@@ -82,7 +88,7 @@ serve(async (req) => {
     const bytes = base64ABytes(audio);
 
     const texto = await transcribe(cfg, new Blob([bytes], { type: tipo }), `audio.${extension}`, {
-      onUsage: usageRecorder("voice-to-text", userIdFromRequest(req)),
+      onUsage: usageRecorder(parcial ? "voice-to-text-parcial" : "voice-to-text", userIdFromRequest(req)),
     });
 
     return json({ text: texto, provider: cfg.provider });

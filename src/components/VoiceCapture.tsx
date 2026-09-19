@@ -19,6 +19,10 @@ interface VoiceCaptureProps {
 }
 
 const BARRAS = 9;
+/** Cada cuánto se pide un avance mientras alguien habla. */
+const CADA_MS = 2500;
+/** Menos de esto no vale la pena mandar: Whisper devuelve ruido. */
+const MINIMO_SEGUNDOS = 1.2;
 
 /**
  * Ventana de dictado. Muestra lo que está pasando en cada momento —te escucho,
@@ -31,10 +35,14 @@ export function VoiceCapture({ abierto, onOpenChange, onCrear }: VoiceCapturePro
   const [texto, setTexto] = useState("");
   const [error, setError] = useState("");
   const [nivel, setNivel] = useState(0);
+  /** Lo que se lleva entendido mientras se habla; se va reemplazando. */
+  const [avance, setAvance] = useState("");
   const grabacionRef = useRef<Grabacion | null>(null);
+  const enVueloRef = useRef(false);
 
   const comenzar = async () => {
     setTexto("");
+    setAvance("");
     setError("");
     setEstado("escuchando");
     try {
@@ -51,6 +59,8 @@ export function VoiceCapture({ abierto, onOpenChange, onCrear }: VoiceCapturePro
     grabacionRef.current = null;
     setNivel(0);
     setEstado("transcribiendo");
+    // Si ya había avance, se muestra mientras llega la versión final.
+    if (avance) setTexto(avance);
 
     try {
       const audio = await grabacion.detener();
@@ -73,6 +83,36 @@ export function VoiceCapture({ abierto, onOpenChange, onCrear }: VoiceCapturePro
       setEstado("error");
     }
   };
+
+  // Avances mientras se habla. Whisper no transcribe en vivo, así que cada pocos
+  // segundos se le manda todo lo dicho hasta ahora y se reemplaza el texto. Nunca
+  // hay dos peticiones a la vez: si la anterior no ha vuelto, este turno se salta.
+  useEffect(() => {
+    if (estado !== "escuchando") return;
+
+    const id = setInterval(async () => {
+      const grabacion = grabacionRef.current;
+      if (!grabacion || enVueloRef.current) return;
+      if (grabacion.duracion() < MINIMO_SEGUNDOS) return;
+
+      enVueloRef.current = true;
+      try {
+        const base64 = await blobABase64(grabacion.instantanea());
+        const { data } = await supabase.functions.invoke("voice-to-text", {
+          body: { audio: base64, mimeType: "audio/wav", parcial: true },
+        });
+        const dicho = (data?.text ?? "").trim();
+        // Puede haber terminado de grabar mientras esto iba en camino.
+        if (dicho && grabacionRef.current) setAvance(dicho);
+      } catch {
+        // Un avance que falla no importa: al detener se transcribe completo.
+      } finally {
+        enVueloRef.current = false;
+      }
+    }, CADA_MS);
+
+    return () => clearInterval(id);
+  }, [estado]);
 
   // Al abrir se empieza a grabar solo: si alguien abrió el dictado, es para dictar.
   useEffect(() => {
@@ -105,7 +145,7 @@ export function VoiceCapture({ abierto, onOpenChange, onCrear }: VoiceCapturePro
           {/* Lo que dijiste, en forma de burbuja, como en un chat */}
           <div className="min-h-28 rounded-2xl bg-muted/60 p-4">
             {estado === "escuchando" && (
-              <div className="flex h-20 flex-col items-center justify-center gap-3">
+              <div className="flex min-h-20 flex-col items-center justify-center gap-3">
                 <div className="flex h-10 items-end gap-1" aria-hidden="true">
                   {Array.from({ length: BARRAS }).map((_, i) => {
                     // El centro se mueve más que los extremos: se ve como una voz
@@ -120,7 +160,14 @@ export function VoiceCapture({ abierto, onOpenChange, onCrear }: VoiceCapturePro
                     );
                   })}
                 </div>
-                <p className="text-footnote text-muted-foreground">Te escucho…</p>
+                {avance ? (
+                  <p className="text-center text-body text-foreground">
+                    {avance}
+                    <span className="ml-0.5 inline-block h-4 w-0.5 translate-y-0.5 animate-pulse bg-primary" />
+                  </p>
+                ) : (
+                  <p className="text-footnote text-muted-foreground">Te escucho…</p>
+                )}
               </div>
             )}
 
