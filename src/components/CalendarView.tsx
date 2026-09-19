@@ -1,403 +1,176 @@
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, AlertCircle, CheckCircle2, Target, Award, Flame } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWithinInterval, startOfWeek, endOfWeek, addDays, differenceInDays, isPast, isFuture } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  isWithinInterval,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns";
 import { es } from "date-fns/locale";
-import { Progress } from "@/components/ui/progress";
-import type { Task } from "./TaskCard";
+import { ListaAgrupada, ListaVacia } from "@/components/ui/lista";
+import { TaskCard, type Task } from "./TaskCard";
 import { cn } from "@/lib/utils";
+
 interface CalendarViewProps {
   tasks: Task[];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit?: (id: string, updates: Partial<Task>) => void;
+  onEnfocar?: (task: Task) => void;
 }
-export const CalendarView = ({
-  tasks,
-  onToggle,
-  onDelete,
-  onEdit
-}: CalendarViewProps) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
 
-  // Get tasks for selected date
-  const getTasksForDate = (date: Date) => {
-    return tasks.filter(task => {
-      // Task has start date on this day
-      if (task.startDate && isSameDay(new Date(task.startDate), date)) {
-        return true;
-      }
-      // Task has due date on this day
-      if (task.dueDate && isSameDay(new Date(task.dueDate), date)) {
-        return true;
-      }
-      // Task is in progress (between start and due date)
-      if (task.startDate && task.dueDate) {
-        const start = new Date(task.startDate);
-        const end = new Date(task.dueDate);
-        return isWithinInterval(date, {
-          start,
-          end
-        });
-      }
-      return false;
-    });
-  };
-  const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
+const INICIALES = ["L", "M", "X", "J", "V", "S", "D"];
 
-  // Get task count for each day to show indicators
-  const getTaskCountForDate = (date: Date) => {
-    return getTasksForDate(date).length;
-  };
+/** Un punto por tarea, hasta tres; el color solo distingue lo hecho de lo pendiente. */
+const MAXIMO_PUNTOS = 3;
 
-  // Get upcoming tasks (next 7 days)
-  const getUpcomingTasks = () => {
-    const today = new Date();
-    const nextWeek = addDays(today, 7);
-    return tasks.filter(task => {
-      if (!task.dueDate) return false;
-      const dueDate = new Date(task.dueDate);
-      return !task.completed && isFuture(dueDate) && differenceInDays(dueDate, today) <= 7;
-    }).sort((a, b) => {
-      if (!a.dueDate || !b.dueDate) return 0;
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
-  };
+/**
+ * Calendario del mes con la misma gramática que el resto de la app: una
+ * superficie agrupada, tipografía de la misma escala y un solo acento.
+ *
+ * La versión anterior mezclaba el calendario con cinco bloques de estadísticas
+ * (racha, avance de la semana, del mes, vencidas, próximas) que competían con la
+ * cuadrícula y repetían lo que ya dice la pantalla principal. Aquí el calendario
+ * hace una cosa: mostrar qué días tienen trabajo y dejar ver el día que elijas.
+ */
+export const CalendarView = ({ tasks, onToggle, onDelete, onEdit, onEnfocar }: CalendarViewProps) => {
+  const [mes, setMes] = useState(() => startOfMonth(new Date()));
+  const [elegido, setElegido] = useState<Date>(() => new Date());
 
-  // Get overdue tasks
-  const getOverdueTasks = () => {
-    const today = new Date();
-    return tasks.filter(task => {
-      if (!task.dueDate || task.completed) return false;
-      return isPast(new Date(task.dueDate)) && !isSameDay(new Date(task.dueDate), today);
-    });
-  };
+  const dias = useMemo(() => {
+    const inicio = startOfWeek(startOfMonth(mes), { weekStartsOn: 1 });
+    const fin = endOfWeek(endOfMonth(mes), { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: inicio, end: fin });
+  }, [mes]);
 
-  // Get week stats
-  const getWeekStats = () => {
-    const weekStart = startOfWeek(currentDate, {
-      locale: es
-    });
-    const weekEnd = endOfWeek(currentDate, {
-      locale: es
-    });
-    const weekTasks = tasks.filter(task => {
-      if (task.startDate) {
-        const start = new Date(task.startDate);
-        if (isWithinInterval(start, {
-          start: weekStart,
-          end: weekEnd
-        })) return true;
-      }
-      if (task.dueDate) {
-        const due = new Date(task.dueDate);
-        if (isWithinInterval(due, {
-          start: weekStart,
-          end: weekEnd
-        })) return true;
-      }
-      return false;
-    });
-    const completed = weekTasks.filter(t => t.completed).length;
-    const total = weekTasks.length;
-    const percentage = total > 0 ? Math.round(completed / total * 100) : 0;
-    return {
-      completed,
-      total,
-      percentage
-    };
-  };
-  const upcomingTasks = getUpcomingTasks();
-  const overdueTasks = getOverdueTasks();
-  const weekStats = getWeekStats();
+  const tareasDe = useMemo(() => {
+    return (dia: Date) =>
+      tasks.filter(t => {
+        const inicio = t.startDate ? new Date(t.startDate) : undefined;
+        const limite = t.dueDate ? new Date(t.dueDate) : undefined;
+        if (limite && isSameDay(limite, dia)) return true;
+        if (inicio && isSameDay(inicio, dia)) return true;
+        // Una tarea con rango ocupa todos los días intermedios
+        if (inicio && limite) return isWithinInterval(dia, { start: inicio, end: limite });
+        return false;
+      });
+  }, [tasks]);
 
-  // Get month stats
-  const getMonthStats = () => {
-    const monthTasks = tasks.filter(task => {
-      if (task.startDate) {
-        const start = new Date(task.startDate);
-        if (start.getMonth() === currentDate.getMonth() && start.getFullYear() === currentDate.getFullYear()) return true;
-      }
-      if (task.dueDate) {
-        const due = new Date(task.dueDate);
-        if (due.getMonth() === currentDate.getMonth() && due.getFullYear() === currentDate.getFullYear()) return true;
-      }
-      return false;
-    });
-    const completed = monthTasks.filter(t => t.completed).length;
-    const highPriority = monthTasks.filter(t => t.priority === 'high').length;
-    const total = monthTasks.length;
-    return {
-      completed,
-      highPriority,
-      total
-    };
-  };
-  const monthStats = getMonthStats();
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-  const goToToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    setSelectedDate(today);
-  };
-  return <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Calendar */}
-      <Card className="lg:col-span-3 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">
-            {format(currentDate, "MMMM yyyy", {
-            locale: es
-          })}
+  const delDia = tareasDe(elegido);
+  const hoy = new Date();
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        {/* Mes y navegación */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <h2 className="text-title3 font-semibold capitalize text-foreground">
+            {format(mes, "LLLL yyyy", { locale: es })}
           </h2>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={goToToday}>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setMes(startOfMonth(hoy));
+                setElegido(hoy);
+              }}
+            >
               Hoy
             </Button>
-            <Button variant="outline" size="icon" onClick={goToPreviousMonth}>
-              <ChevronLeft className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={() => setMes(subMonths(mes, 1))} aria-label="Mes anterior">
+              <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Button variant="outline" size="icon" onClick={goToNextMonth}>
-              <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={() => setMes(addMonths(mes, 1))} aria-label="Mes siguiente">
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
-        <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} month={currentDate} onMonthChange={setCurrentDate} locale={es} className={cn("pointer-events-auto w-full")} classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4 w-full",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-xl font-semibold",
-        nav: "space-x-1 flex items-center",
-        nav_button: "h-10 w-10 bg-transparent p-0 opacity-50 hover:opacity-100",
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex w-full",
-        head_cell: "text-muted-foreground rounded-md w-full font-semibold text-sm py-2",
-        row: "flex w-full mt-2",
-        cell: "relative p-0 text-center text-base focus-within:relative focus-within:z-20 w-full h-16",
-        day: "h-full w-full p-0 font-normal aria-selected:opacity-100 hover:bg-accent rounded-md transition-colors",
-        day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
-        day_outside: "text-muted-foreground opacity-50",
-        day_disabled: "text-muted-foreground opacity-50",
-        day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-        day_hidden: "invisible"
-      }} components={{
-        Day: ({
-          date,
-          ...props
-        }) => {
-          const taskCount = getTaskCountForDate(date);
-          const tasksForDay = getTasksForDate(date);
-          const hasStartDate = tasksForDay.some(t => t.startDate && isSameDay(new Date(t.startDate), date));
-          const hasDueDate = tasksForDay.some(t => t.dueDate && isSameDay(new Date(t.dueDate), date));
-          return <div className="relative w-full h-full flex items-center justify-center">
-                  <button {...props} className={cn("w-full h-full p-3 text-base font-medium relative hover:bg-accent rounded-md transition-colors flex flex-col items-center justify-center gap-1", isSameDay(date, selectedDate || new Date()) && "bg-primary text-primary-foreground hover:bg-primary/90", isSameDay(date, new Date()) && !isSameDay(date, selectedDate || new Date()) && "border-2 border-primary")}>
-                    <span className="text-lg">{format(date, "d")}</span>
-                    {taskCount > 0 && <div className="flex gap-1 mt-1">
-                        {hasStartDate && <div className="w-2 h-2 rounded-full bg-blue-500" />}
-                        {hasDueDate && <div className="w-2 h-2 rounded-full bg-orange-500" />}
-                        {!hasStartDate && !hasDueDate && taskCount > 0 && <div className="w-2 h-2 rounded-full bg-primary" />}
-                      </div>}
-                  </button>
-                </div>;
-        }
-      }} />
-
-        {/* Legend and Month Stats */}
-        <div className="mt-6 space-y-4">
-          {/* Legend */}
-          <div className="bg-muted/30 rounded-lg p-4">
-            <h4 className="text-sm font-semibold mb-3">Leyenda</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <span className="text-xs text-muted-foreground">Fecha de inicio</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-500" />
-                <span className="text-xs text-muted-foreground">Fecha de vencimiento</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-primary" />
-                <span className="text-xs text-muted-foreground">Tarea en progreso</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full border-2 border-primary bg-transparent" />
-                <span className="text-xs text-muted-foreground">Día actual</span>
-              </div>
+        <div className="grid grid-cols-7 border-t border-border px-2 pt-2">
+          {INICIALES.map((inicial, i) => (
+            <div key={i} className="pb-1 text-center text-caption text-muted-foreground">
+              {inicial}
             </div>
-          </div>
-
-          {/* Month Overview */}
-          <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg p-4 border border-primary/20 bg-primary-foreground text-secondary-foreground">
-            <div className="flex items-center gap-2 mb-3">
-              <Award className="h-4 w-4 text-emerald-900" />
-              <h4 className="text-sm font-semibold">Resumen del Mes</h4>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{monthStats.total}</div>
-                <div className="text-xs text-muted-foreground mt-1">Total Tareas</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{monthStats.completed}</div>
-                <div className="text-xs text-muted-foreground mt-1">Completadas</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">{monthStats.highPriority}</div>
-                <div className="text-xs text-muted-foreground mt-1">Alta Prioridad</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Productivity Insight */}
-          {monthStats.total > 0 && <div className="bg-gradient-to-br from-accent/10 to-secondary/10 rounded-lg p-4 border bg-primary-foreground border-solid border-secondary">
-              <div className="flex items-center gap-2 mb-2">
-                <Flame className="h-4 w-4 text-orange-500" />
-                <h4 className="text-sm font-semibold">Productividad</h4>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {monthStats.completed === 0 ? "¡Comienza a completar tareas para ver tu progreso!" : Math.round(monthStats.completed / monthStats.total * 100) >= 70 ? `¡Excelente trabajo! Has completado ${Math.round(monthStats.completed / monthStats.total * 100)}% de tus tareas este mes. 🎉` : Math.round(monthStats.completed / monthStats.total * 100) >= 40 ? `Vas por buen camino con ${Math.round(monthStats.completed / monthStats.total * 100)}% completado. ¡Sigue así! 💪` : `Tienes ${monthStats.total - monthStats.completed} tareas pendientes. ¡Tú puedes! 🚀`}
-              </p>
-            </div>}
+          ))}
         </div>
-      </Card>
 
-      {/* Right sidebar with multiple panels */}
-      <div className="lg:col-span-2 space-y-6">
-        {/* Week Progress */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold">Progreso Semanal</h3>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Completadas</span>
-              <span className="font-semibold">{weekStats.completed} / {weekStats.total}</span>
-            </div>
-            <Progress value={weekStats.percentage} className="h-2" />
-            <p className="text-xs text-muted-foreground text-center">
-              {weekStats.percentage}% de tareas completadas esta semana
-            </p>
-          </div>
-        </Card>
+        <div className="grid grid-cols-7 gap-px px-2 pb-3">
+          {dias.map(dia => {
+            const delMes = isSameMonth(dia, mes);
+            const esHoy = isSameDay(dia, hoy);
+            const esElegido = isSameDay(dia, elegido);
+            const deEseDia = tareasDe(dia);
 
-        {/* Overdue Tasks */}
-        {overdueTasks.length > 0 && <Card className="p-6 border-destructive/50">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              <h3 className="text-lg font-semibold text-destructive">Tareas Vencidas</h3>
-            </div>
-            <div className="space-y-2">
-              {overdueTasks.slice(0, 3).map(task => <div key={task.id} className="p-2 rounded-lg bg-destructive/5 border border-destructive/20">
-                  <p className="text-sm font-medium line-clamp-1">{task.title}</p>
-                  {task.dueDate && <p className="text-xs text-muted-foreground mt-1">
-                      Venció: {format(new Date(task.dueDate), "d MMM", {
-                locale: es
-              })}
-                    </p>}
-                </div>)}
-              {overdueTasks.length > 3 && <p className="text-xs text-muted-foreground text-center mt-2">
-                  +{overdueTasks.length - 3} tareas más vencidas
-                </p>}
-            </div>
-          </Card>}
-
-        {/* Upcoming Tasks */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Target className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold">Próximas (7 días)</h3>
-          </div>
-          {upcomingTasks.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">
-              No hay tareas próximas
-            </p> : <div className="space-y-2">
-              {upcomingTasks.slice(0, 5).map(task => {
-            const daysUntil = task.dueDate ? differenceInDays(new Date(task.dueDate), new Date()) : 0;
-            return <div key={task.id} className="p-2 rounded-lg bg-muted/50 border">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium line-clamp-1 flex-1">{task.title}</p>
-                      <Badge variant={daysUntil <= 2 ? "destructive" : "secondary"} className="text-xs shrink-0">
-                        {daysUntil === 0 ? "Hoy" : daysUntil === 1 ? "Mañana" : `${daysUntil}d`}
-                      </Badge>
-                    </div>
-                    {task.dueDate && <p className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(task.dueDate), "d 'de' MMMM", {
-                  locale: es
-                })}
-                      </p>}
-                  </div>;
-          })}
-            </div>}
-        </Card>
-
-        {/* Task list for selected date */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CalendarIcon className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold">
-              {selectedDate ? format(selectedDate, "d 'de' MMMM", {
-              locale: es
-            }) : "Selecciona un día"}
-            </h3>
-          </div>
-
-          {selectedDateTasks.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">
-              No hay tareas para este día
-            </p> : <div className="space-y-3">
-              {selectedDateTasks.map(task => {
-            const isStartDate = task.startDate && selectedDate && isSameDay(new Date(task.startDate), selectedDate);
-            const isDueDate = task.dueDate && selectedDate && isSameDay(new Date(task.dueDate), selectedDate);
-            return <div key={task.id} className={cn("p-3 rounded-lg border transition-all", task.completed && "opacity-60")}>
-                    <div className="flex items-start gap-2">
-                      <input type="checkbox" checked={task.completed} onChange={() => onToggle(task.id)} className="mt-1" />
-                      <div className="flex-1 min-w-0">
-                        <h4 className={cn("font-medium text-sm", task.completed && "line-through")}>
-                          {task.title}
-                        </h4>
-                        {task.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {task.description}
-                          </p>}
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          <Badge variant={task.priority === "high" ? "destructive" : task.priority === "medium" ? "default" : "secondary"} className="text-xs">
-                            {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
-                          </Badge>
-                          {isStartDate && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
-                              Inicio
-                            </Badge>}
-                          {isDueDate && <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20">
-                              Vence
-                            </Badge>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>;
-          })}
-            </div>}
-
-          {selectedDateTasks.length > 0 && <div className="mt-4 pt-4 border-t">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Total: {selectedDateTasks.length} tarea{selectedDateTasks.length !== 1 ? 's' : ''}</span>
-                <span>
-                  {selectedDateTasks.filter(t => t.completed).length} completada{selectedDateTasks.filter(t => t.completed).length !== 1 ? 's' : ''}
+            return (
+              <button
+                key={dia.toISOString()}
+                type="button"
+                onClick={() => setElegido(dia)}
+                aria-label={format(dia, "d 'de' MMMM", { locale: es })}
+                aria-pressed={esElegido}
+                className={cn(
+                  "flex h-14 flex-col items-center justify-center gap-1 rounded-xl transition-colors",
+                  !delMes && "text-muted-foreground/35",
+                  delMes && "text-foreground hover:bg-muted/60",
+                  esElegido && "bg-primary text-primary-foreground hover:bg-primary",
+                )}
+              >
+                <span className={cn("tabular text-footnote", esHoy && !esElegido && "font-bold text-primary")}>
+                  {format(dia, "d")}
                 </span>
-              </div>
-            </div>}
-        </Card>
+                <span className="flex h-1.5 items-center gap-0.5">
+                  {deEseDia.slice(0, MAXIMO_PUNTOS).map(t => (
+                    <span
+                      key={t.id}
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        esElegido
+                          ? "bg-primary-foreground/70"
+                          : t.completed
+                            ? "bg-muted-foreground/40"
+                            : "bg-primary",
+                      )}
+                    />
+                  ))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </div>;
+
+      <ListaAgrupada
+        titulo={
+          isSameDay(elegido, hoy)
+            ? "Hoy"
+            : format(elegido, "EEEE d 'de' MMMM", { locale: es }).replace(/^./, c => c.toUpperCase())
+        }
+        descripcion={delDia.length === 1 ? "1 tarea" : `${delDia.length} tareas`}
+      >
+        {delDia.length === 0 ? (
+          <ListaVacia>Nada agendado para este día.</ListaVacia>
+        ) : (
+          delDia.map(task => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onEdit={onEdit}
+              onEnfocar={onEnfocar ? () => onEnfocar(task) : undefined}
+            />
+          ))
+        )}
+      </ListaAgrupada>
+    </div>
+  );
 };

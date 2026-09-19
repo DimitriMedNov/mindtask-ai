@@ -445,7 +445,7 @@ const Dashboard = () => {
               )}
 
               {viewMode === 'calendar' ? (
-                <CalendarView tasks={tasks} onToggle={toggleTask} onDelete={deleteTask} onEdit={editTask} />
+                <CalendarView tasks={tasks} onToggle={toggleTask} onDelete={deleteTask} onEdit={editTask} onEnfocar={setEnfoque} />
               ) : (
                 <ListaAgrupada>
                   {actual.lista.length === 0 ? (
