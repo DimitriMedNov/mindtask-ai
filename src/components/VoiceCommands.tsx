@@ -5,6 +5,7 @@ import { Mic, MicOff, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { describeAIError, showAIErrorToast } from "@/lib/aiErrors";
+import { grabarWav, type Grabacion } from "@/lib/grabarWav";
 
 interface VoiceCommandsProps {
   /** En modo compacto es un botón de ícono para la barra superior. */
@@ -18,7 +19,6 @@ type Disponibilidad =
   | { estado: "no-disponible"; motivo: string };
 
 /** Formatos en orden de preferencia: Chrome y Firefox graban webm/ogg, Safari solo mp4. */
-const FORMATOS = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
 
 /** Blob a base64 sin el prefijo "data:...;base64,". */
 function blobABase64(blob: Blob): Promise<string> {
@@ -34,8 +34,7 @@ export const VoiceCommands = ({ onVoiceCommand, compact = false }: VoiceCommands
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad>({ estado: "revisando" });
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const grabacionRef = useRef<Grabacion | null>(null);
 
   // Antes de dejar grabar, preguntar si el navegador puede grabar y si el
   // proveedor configurado transcribe. Así nadie graba para fallar al final.
@@ -43,7 +42,7 @@ export const VoiceCommands = ({ onVoiceCommand, compact = false }: VoiceCommands
     let cancelado = false;
 
     const revisar = async (): Promise<Disponibilidad> => {
-      if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      if (!navigator.mediaDevices?.getUserMedia) {
         return { estado: "no-disponible", motivo: "Este navegador no permite grabar audio." };
       }
       const { data, error } = await supabase.functions.invoke("voice-to-text", { method: "GET" });
@@ -64,46 +63,29 @@ export const VoiceCommands = ({ onVoiceCommand, compact = false }: VoiceCommands
   }, []);
 
   const startRecording = async () => {
-    let stream: MediaStream | null = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = FORMATOS.find((f) => MediaRecorder.isTypeSupported(f));
-      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-
-      const pista = stream;
-      mediaRecorder.onstop = async () => {
-        pista.getTracks().forEach(track => track.stop());
-        // El tipo real lo decide el navegador; no siempre es webm
-        const audioBlob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType || "audio/webm" });
-        await processAudio(audioBlob);
-      };
-
-      mediaRecorder.start();
+      // Se graba WAV de 16 kHz directo del micrófono: es lo único que lee
+      // whisper.cpp, y con webm respondía 400.
+      grabacionRef.current = await grabarWav();
       setIsRecording(true);
-      toast.info("Grabando... Habla ahora", {
-        description: "Presiona el botón nuevamente para detener"
+      toast.info("Grabando… habla ahora", {
+        description: "Presiona el botón otra vez para detener",
       });
-    } catch (error) {
-      stream?.getTracks().forEach(track => track.stop());
-      toast.error("Error al acceder al micrófono", {
-        description: "Asegúrate de dar permisos al navegador"
+    } catch {
+      toast.error("No se pudo usar el micrófono", {
+        description: "Revisa que el navegador tenga permiso.",
       });
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
+  const stopRecording = async () => {
+    const grabacion = grabacionRef.current;
+    if (!grabacion || !isRecording) return;
+
+    grabacionRef.current = null;
+    setIsRecording(false);
+    const audio = await grabacion.detener();
+    await processAudio(audio);
   };
 
   const processAudio = async (audioBlob: Blob) => {
@@ -139,9 +121,9 @@ export const VoiceCommands = ({ onVoiceCommand, compact = false }: VoiceCommands
 
   const toggleRecording = () => {
     if (isRecording) {
-      stopRecording();
+      void stopRecording();
     } else {
-      startRecording();
+      void startRecording();
     }
   };
 

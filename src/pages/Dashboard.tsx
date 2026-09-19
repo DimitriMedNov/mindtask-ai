@@ -6,12 +6,12 @@ import { AIAssistant } from "@/components/AIAssistant";
 import { AISuggestions } from "@/components/AISuggestions";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
 import { GamificationPanel } from "@/components/GamificationPanel";
-import { VoiceCommands } from "@/components/VoiceCommands";
+import { VoiceCapture } from "@/components/VoiceCapture";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { CalendarView } from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Shield, Calendar, List } from "lucide-react";
+import { LogOut, Shield, Calendar, List, Mic } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ const Dashboard = () => {
   // Se abre el espacio de las sugerencias al pedirlas, no cuando llegan: así la
   // lista no salta debajo del usuario a los 30 segundos.
   const [sugerenciasCargando, setSugerenciasCargando] = useState(false);
+  const [dictando, setDictando] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<Array<{
     title: string;
     description?: string;
@@ -76,14 +77,18 @@ const Dashboard = () => {
 
   const loadUserRole = async () => {
     try {
+      // Un usuario puede tener más de un rol: el disparador de alta le pone
+      // "user" y un administrador puede agregarle "admin" encima. Pedir uno solo
+      // con maybeSingle() reventaba y dejaba a los administradores como usuarios
+      // normales; aquí se traen todos y gana el más alto.
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .eq('user_id', user.id);
 
       if (error) throw error;
-      setUserRole(data?.role || 'user');
+      const roles = (data ?? []).map((r) => r.role);
+      setUserRole(roles.includes('admin') ? 'admin' : 'user');
     } catch (error) {
       console.error('Error loading user role:', error);
       setUserRole('user');
@@ -259,22 +264,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleVoiceCommand = (text: string) => {
-    const lowerText = text.toLowerCase();
-    if (lowerText.includes('crear tarea') || lowerText.includes('nueva tarea')) {
-      const taskTitle = text.replace(/crear tarea/gi, '').replace(/nueva tarea/gi, '').trim();
-      if (taskTitle) {
-        addTask({
-          title: taskTitle,
-          description: "Creada por comando de voz",
-          completed: false,
-          priority: "medium",
-          category: "Personal"
-        });
-      }
-    }
-  };
-
   const handleAISuggestions = (suggestions: Omit<Task, "id" | "createdAt" | "completed">[]) => {
     setAiSuggestions(suggestions.map(s => ({ ...s, completed: false as const })));
   };
@@ -351,7 +340,15 @@ const Dashboard = () => {
                 {showAdminView ? "Vista usuario" : "Vista admin"}
               </Button>
             )}
-            <VoiceCommands onVoiceCommand={handleVoiceCommand} compact />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setDictando(true)}
+              title="Dictar una tarea"
+              aria-label="Dictar una tarea"
+            >
+              <Mic className="h-5 w-5" />
+            </Button>
             <AddTaskDialog onAddTask={addTask} />
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Cerrar sesión">
@@ -470,6 +467,8 @@ const Dashboard = () => {
           </>
         )}
       </div>
+
+      <VoiceCapture abierto={dictando} onOpenChange={setDictando} onCrear={addTask} />
     </div>
   );
 };

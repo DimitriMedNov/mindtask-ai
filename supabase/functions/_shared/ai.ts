@@ -255,7 +255,12 @@ async function callModel(
           continue;
         }
       }
-      throw new AIError(`El proveedor ${cfg.provider} respondió ${res.status}: ${cuerpo.slice(0, 500)}`, 502);
+      // Quién falló importa: el transcriptor puede ser otro servicio distinto
+      // del que genera el texto, y culpar al equivocado manda a revisar donde no es.
+      const quien = kind === "transcription"
+        ? `El servicio de transcripción (${cfg.sttFormat === "whisper-cpp" ? "whisper.cpp" : cfg.provider})`
+        : `El proveedor ${cfg.provider}`;
+      throw new AIError(`${quien} respondió ${res.status}: ${cuerpo.slice(0, 500)}`, 502);
     }
   } catch (err) {
     if (err instanceof AIError) {
