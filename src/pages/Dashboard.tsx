@@ -4,20 +4,19 @@ import { TaskCard, type Task } from "@/components/TaskCard";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { AIAssistant } from "@/components/AIAssistant";
 import { AISuggestions } from "@/components/AISuggestions";
-import { PomodoroTimer } from "@/components/PomodoroTimer";
-import { GamificationPanel } from "@/components/GamificationPanel";
+import { BarraEnfoque } from "@/components/BarraEnfoque";
 import { VoiceCapture } from "@/components/VoiceCapture";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { CalendarView } from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Shield, Calendar, List, Mic } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ListaAgrupada, ListaVacia } from "@/components/ui/lista";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { fechaLocal } from "@/lib/fechas";
+import { esParaHoy, fechaLarga, fechaLocal } from "@/lib/fechas";
 
 /** Guarda la fecha tal como la eligió el usuario, sin convertirla a UTC. */
 const aTextoFecha = (fecha?: Date) =>
@@ -37,6 +36,10 @@ const Dashboard = () => {
   // lista no salta debajo del usuario a los 30 segundos.
   const [sugerenciasCargando, setSugerenciasCargando] = useState(false);
   const [dictando, setDictando] = useState(false);
+  const [enfoque, setEnfoque] = useState<Task | null>(null);
+  const [nivel, setNivel] = useState(1);
+  const [racha, setRacha] = useState(0);
+  const [vista, setVista] = useState<"hoy" | "pronto" | "hechas">("hoy");
   const [aiSuggestions, setAiSuggestions] = useState<Array<{
     title: string;
     description?: string;
@@ -73,8 +76,22 @@ const Dashboard = () => {
     if (user) {
       loadTasks();
       loadUserRole();
+      loadStats();
     }
   }, [user]);
+
+  /** Nivel y racha viven en una sola línea del encabezado: son premio, no protagonista. */
+  const loadStats = async () => {
+    const { data } = await supabase
+      .from('user_stats')
+      .select('level, streak_days')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (data) {
+      setNivel(data.level ?? 1);
+      setRacha(data.streak_days ?? 0);
+    }
+  };
 
   const loadUserRole = async () => {
     try {
@@ -302,127 +319,116 @@ const Dashboard = () => {
   const activeTasks = tasks.filter(task => !task.completed);
   const completedTasks = tasks.filter(task => task.completed);
 
-  const filtros = [
-    { valor: "all", texto: "Todas", lista: tasks, vacio: "No hay tareas todavía. Crea la primera." },
-    { valor: "active", texto: "Activas", lista: activeTasks, vacio: "Sin pendientes. Bien ahí." },
-    { valor: "completed", texto: "Hechas", lista: completedTasks, vacio: "Aún no completas ninguna." },
+  // "Hoy" contesta una sola pregunta: qué toca ahora. Lo demás se asoma apenas.
+  const paraHoy = activeTasks.filter(t => esParaHoy(t.dueDate));
+  const pronto = activeTasks.filter(t => !esParaHoy(t.dueDate));
+
+  const vistas = [
+    { id: "hoy" as const, texto: "Hoy", lista: paraHoy, vacio: "Nada para hoy. Disfrútalo." },
+    { id: "pronto" as const, texto: "Pronto", lista: pronto, vacio: "No hay nada más adelante." },
+    { id: "hechas" as const, texto: "Hechas", lista: completedTasks, vacio: "Aún no completas ninguna." },
   ];
+  const actual = vistas.find(v => v.id === vista) ?? vistas[0];
+
+  const saludo = paraHoy.length === 0
+    ? "Nada pendiente para hoy."
+    : `${paraHoy.length} ${paraHoy.length === 1 ? "cosa" : "cosas"} para hoy.`;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-5xl px-4 py-8">
-        {/* Encabezado: identidad a la izquierda, acciones a la derecha */}
-        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-largeTitle font-bold text-foreground">MindTask</h1>
-              {userRole === 'admin' && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-caption font-medium text-secondary-foreground">
-                  <Shield className="h-3.5 w-3.5" />
-                  Admin
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-footnote text-muted-foreground">
-              {activeTasks.length === 0
-                ? "No tienes nada pendiente."
-                : `${activeTasks.length} ${activeTasks.length === 1 ? "tarea pendiente" : "tareas pendientes"}`}
-            </p>
+    <div className="min-h-screen bg-background pb-28">
+      {/* Barra translúcida, como las de iOS: el contenido pasa por debajo */}
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/72 backdrop-blur-xl">
+        <div className="container mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-callout font-semibold text-foreground">MindTask</span>
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-caption text-muted-foreground">
+              local
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {userRole === 'admin' && (
-              <Button
-                variant={showAdminView ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowAdminView(!showAdminView)}
-              >
-                <Shield className="mr-2 h-4 w-4" />
-                {showAdminView ? "Vista usuario" : "Vista admin"}
+              <Button variant="ghost" size="sm" onClick={() => setShowAdminView(!showAdminView)}>
+                {showAdminView ? "Mis tareas" : "Admin"}
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setDictando(true)}
-              title="Dictar una tarea"
-              aria-label="Dictar una tarea"
-            >
+            <Button variant="ghost" size="icon" onClick={() => setDictando(true)} aria-label="Dictar una tarea">
               <Mic className="h-5 w-5" />
             </Button>
-            <AddTaskDialog onAddTask={addTask} />
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Cerrar sesión">
               <LogOut className="h-5 w-5" />
             </Button>
           </div>
-        </header>
+        </div>
+      </header>
 
+      <main className="container mx-auto max-w-3xl px-5">
         {userRole === 'admin' && showAdminView ? (
-          <AdminDashboard />
+          <div className="py-8">
+            <AdminDashboard />
+          </div>
         ) : (
           <>
-            {/* Foco manda: es lo único que representa trabajar ahora mismo.
-                El progreso lo acompaña, en tono neutro y sin competir. */}
-            <section className="mb-8 grid gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <PomodoroTimer />
-              </div>
-              <GamificationPanel />
+            {/* Título grande, como el de una pantalla de iOS antes de hacer scroll */}
+            <section className="pb-6 pt-10">
+              <p className="text-footnote text-muted-foreground">{fechaLarga()}</p>
+              <h1 className="mt-1 text-largeTitle font-bold tracking-tight text-foreground">{saludo}</h1>
+              <p className="mt-2 text-footnote text-muted-foreground">
+                Nivel {nivel} · racha de {racha} {racha === 1 ? "día" : "días"} · {completedTasks.length} hechas
+              </p>
             </section>
 
-            {/* Barra de la lista: filtros con su cuenta, vista y la IA juntas */}
-            <Tabs defaultValue="all" className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <TabsList>
-                  {filtros.map(({ valor, texto, lista }) => (
-                    <TabsTrigger key={valor} value={valor} className="gap-1.5">
+            {/* Control segmentado, con su cuenta al lado */}
+            <div className="sticky top-[57px] z-20 -mx-5 bg-background/80 px-5 py-2 backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div className="inline-flex rounded-xl bg-secondary p-1">
+                  {vistas.map(({ id, texto, lista }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setVista(id)}
+                      aria-pressed={vista === id}
+                      className={cn(
+                        "rounded-lg px-3.5 py-1.5 text-footnote font-medium transition-colors",
+                        vista === id
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
                       {texto}
-                      <span className="tabular text-caption text-muted-foreground">{lista.length}</span>
-                    </TabsTrigger>
+                      <span className="tabular ml-1.5 text-caption opacity-60">{lista.length}</span>
+                    </button>
                   ))}
-                </TabsList>
+                </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <AIAssistant
                     tasks={tasks}
                     onSuggest={handleAISuggestions}
                     onLoadingChange={setSugerenciasCargando}
                   />
-                  <div className="inline-flex rounded-lg border border-border p-0.5">
-                    <Button
-                      variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                      size="sm"
-                      onClick={() => setViewMode('list')}
-                      aria-label="Ver como lista"
-                      aria-pressed={viewMode === 'list'}
-                    >
-                      <List className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
-                      size="sm"
-                      onClick={() => setViewMode('calendar')}
-                      aria-label="Ver como calendario"
-                      aria-pressed={viewMode === 'calendar'}
-                    >
-                      <Calendar className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
+                    aria-label={viewMode === 'list' ? "Ver calendario" : "Ver lista"}
+                  >
+                    {viewMode === 'list' ? <Calendar className="h-5 w-5" /> : <List className="h-5 w-5" />}
+                  </Button>
+                  <AddTaskDialog onAddTask={addTask} />
                 </div>
               </div>
+            </div>
 
-              {/* El espacio se reserva desde el clic: con un modelo local esto
-                  puede tardar medio minuto y la espera tiene que verse. */}
+            <div className="space-y-4 py-4">
               {sugerenciasCargando && (
-                <div className="animate-in fade-in slide-in-from-top-1 rounded-xl border border-border bg-card p-4 duration-200">
+                <div className="animate-in fade-in slide-in-from-top-1 rounded-2xl border border-border bg-card p-4 duration-200">
                   <p className="mb-3 text-footnote text-muted-foreground">
                     Pensando en tres tareas para ti. Con un modelo local esto puede tardar.
                   </p>
                   <div className="space-y-2.5">
-                    {[0, 1, 2].map((i) => (
-                      <Skeleton key={i} className="h-10 w-full" />
-                    ))}
+                    {[0, 1, 2].map(i => <Skeleton key={i} className="h-10 w-full" />)}
                   </div>
                 </div>
               )}
@@ -439,39 +445,37 @@ const Dashboard = () => {
               )}
 
               {viewMode === 'calendar' ? (
-                <CalendarView
-                  tasks={tasks}
-                  onToggle={toggleTask}
-                  onDelete={deleteTask}
-                  onEdit={editTask}
-                />
+                <CalendarView tasks={tasks} onToggle={toggleTask} onDelete={deleteTask} onEdit={editTask} />
               ) : (
-                filtros.map(({ valor, lista, vacio }) => (
-                  <TabsContent key={valor} value={valor}>
-                    <ListaAgrupada>
-                      {lista.length === 0 ? (
-                        <ListaVacia>{vacio}</ListaVacia>
-                      ) : (
-                        lista.map(task => (
-                          <TaskCard
-                            key={task.id}
-                            task={task}
-                            onToggle={toggleTask}
-                            onDelete={deleteTask}
-                            onEdit={editTask}
-                          />
-                        ))
-                      )}
-                    </ListaAgrupada>
-                  </TabsContent>
-                ))
+                <ListaAgrupada>
+                  {actual.lista.length === 0 ? (
+                    <ListaVacia>{actual.vacio}</ListaVacia>
+                  ) : (
+                    actual.lista.map(task => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onToggle={toggleTask}
+                        onDelete={deleteTask}
+                        onEdit={editTask}
+                        onEnfocar={() => setEnfoque(task)}
+                        enfocada={enfoque?.id === task.id}
+                      />
+                    ))
+                  )}
+                </ListaAgrupada>
               )}
-            </Tabs>
+            </div>
           </>
         )}
-      </div>
+      </main>
 
       <VoiceCapture abierto={dictando} onOpenChange={setDictando} onCrear={addTask} />
+      <BarraEnfoque
+        tarea={enfoque}
+        onCerrar={() => setEnfoque(null)}
+        onCompletar={(id) => toggleTask(id)}
+      />
     </div>
   );
 };

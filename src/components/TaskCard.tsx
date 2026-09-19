@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Trash2, CalendarClock } from "lucide-react";
+import { Trash2, CalendarClock, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { colorVencimiento, describirVencimiento } from "@/lib/fechas";
 import { EditTaskDialog } from "./EditTaskDialog";
@@ -23,6 +23,9 @@ type TaskCardProps = {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit?: (id: string, updates: Partial<Task>) => void;
+  /** Empieza un bloque de enfoque con esta tarea. */
+  onEnfocar?: () => void;
+  enfocada?: boolean;
 };
 
 /** Una raya de color a la izquierda pesa menos que una insignia y se lee igual de rápido. */
@@ -38,7 +41,7 @@ const etiquetaPrioridad = {
   high: "Prioridad alta",
 };
 
-export function TaskCard({ task, onToggle, onDelete, onEdit }: TaskCardProps) {
+export function TaskCard({ task, onToggle, onDelete, onEdit, onEnfocar, enfocada }: TaskCardProps) {
   const [borrando, setBorrando] = useState(false);
 
   const handleDelete = () => {
@@ -53,6 +56,7 @@ export function TaskCard({ task, onToggle, onDelete, onEdit }: TaskCardProps) {
       className={cn(
         "group relative flex items-start gap-3 bg-card py-3 pl-5 pr-3 transition-colors duration-150",
         "hover:bg-muted/40",
+        enfocada && "bg-primary/5",
         borrando && "opacity-0",
         task.completed && "opacity-60",
       )}
@@ -100,6 +104,18 @@ export function TaskCard({ task, onToggle, onDelete, onEdit }: TaskCardProps) {
 
       {/* Acciones pegadas al texto, no al otro extremo de la pantalla */}
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
+        {onEnfocar && !task.completed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onEnfocar}
+            aria-label={`Enfocarme en ${task.title}`}
+            title="Trabajar en esto 25 minutos"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+          >
+            <Timer className="h-4 w-4" />
+          </Button>
+        )}
         {onEdit && <EditTaskDialog task={task} onEditTask={onEdit} />}
         <Button
           variant="ghost"

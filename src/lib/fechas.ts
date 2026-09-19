@@ -51,3 +51,15 @@ export const colorVencimiento: Record<EstadoVencimiento, string> = {
   pronto: "text-foreground",
   lejos: "text-muted-foreground",
 };
+
+/** "Jueves 18 de septiembre", con mayúscula inicial. */
+export function fechaLarga(fecha = new Date()): string {
+  const texto = format(fecha, "EEEE d 'de' MMMM", { locale: es });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/** ¿Esta tarea toca hoy o ya se pasó? */
+export function esParaHoy(fecha?: Date, hoy = new Date()): boolean {
+  if (!fecha) return false;
+  return differenceInCalendarDays(fecha, hoy) <= 0;
+}
