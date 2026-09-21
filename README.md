@@ -165,6 +165,10 @@ The whole stack runs on your machine: Postgres, auth, storage, the Edge Function
 model. Useful if you care about privacy, if you want to work offline, or if you just don't
 want to pay anyone to try it.
 
+> npm is the package manager here. The repo used to carry a stale `bun.lockb`
+> from its Lovable scaffold alongside `package-lock.json`; two lockfiles for one
+> project is how installs start drifting between machines.
+
 ```bash
 npm install
 supabase start                 # Postgres + auth + functions (needs Docker)

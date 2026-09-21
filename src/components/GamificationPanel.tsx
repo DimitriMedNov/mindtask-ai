@@ -57,8 +57,14 @@ export const GamificationPanel = () => {
     }
   };
 
-  const pointsToNextLevel = stats.level * 100;
-  const progress = (stats.points % 100) / pointsToNextLevel * 100;
+  // Cada nivel cuesta 100 puntos: el nivel se calcula como
+  // Math.floor(points / 100) + 1, así que lo que falta es lo que resta para
+  // completar la centena actual. Antes multiplicaba por el nivel y en nivel 4
+  // con 340 puntos decía "360 pts para nivel 5" en vez de 60.
+  const PUNTOS_POR_NIVEL = 100;
+  const enEsteNivel = stats.points % PUNTOS_POR_NIVEL;
+  const faltan = PUNTOS_POR_NIVEL - enEsteNivel;
+  const progress = (enEsteNivel / PUNTOS_POR_NIVEL) * 100;
 
   return (
     <Card className="border-accent/20 bg-gradient-to-br from-card to-accent/5">
@@ -79,7 +85,7 @@ export const GamificationPanel = () => {
           </div>
           <Progress value={progress} className="h-2" />
           <p className="text-xs text-muted-foreground text-right">
-            {pointsToNextLevel - (stats.points % 100)} pts para nivel {stats.level + 1}
+            {faltan} pts para nivel {stats.level + 1}
           </p>
         </div>
 
