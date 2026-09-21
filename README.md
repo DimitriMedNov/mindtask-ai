@@ -1,5 +1,8 @@
 # MindTask
 
+[![Pruebas](https://github.com/DimitriMedNov/mindtask-ai/actions/workflows/tests.yml/badge.svg)](https://github.com/DimitriMedNov/mindtask-ai/actions/workflows/tests.yml)
+[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](https://github.com/DimitriMedNov/mindtask-ai/blob/main/LICENSE)
+
 A personal task manager that runs on your own machine: your database, your model,
 your data. No landing page, no sign-up funnel — it opens straight into the app.
 
