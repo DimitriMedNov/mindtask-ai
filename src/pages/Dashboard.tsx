@@ -38,6 +38,8 @@ const Dashboard = () => {
   const [sugerenciasCargando, setSugerenciasCargando] = useState(false);
   const [dictando, setDictando] = useState(false);
   const [enfoque, setEnfoque] = useState<Task | null>(null);
+  /** Lo publica la barra de enfoque para que la fila muestre el mismo reloj. */
+  const [tiempoEnfoque, setTiempoEnfoque] = useState<string>("");
   const [nivel, setNivel] = useState(1);
   const [racha, setRacha] = useState(0);
   const [vista, setVista] = useState<"hoy" | "pronto" | "hechas">("hoy");
@@ -353,6 +355,7 @@ const Dashboard = () => {
       onEdit={editTask}
       onEnfocar={() => setEnfoque(task)}
       enfocada={enfoque?.id === task.id}
+      tiempoEnfoque={enfoque?.id === task.id ? tiempoEnfoque : undefined}
     />
   );
 
@@ -463,12 +466,12 @@ const Dashboard = () => {
                   <>
                     {/* Todo apilado: nada se esconde detrás de un filtro */}
                     {vencidas.length > 0 && (
-                      <ListaAgrupada titulo="Se te pasaron" descripcion="Muévelas de fecha o resuélvelas">
+                      <ListaAgrupada titulo="Se te pasaron" tono="alerta" cuenta={vencidas.length}>
                         {vencidas.map(renglon)}
                       </ListaAgrupada>
                     )}
 
-                    <ListaAgrupada titulo="Hoy">
+                    <ListaAgrupada titulo="Hoy" cuenta={paraHoy.length}>
                       {paraHoy.length === 0 ? (
                         <div className="px-4 py-8 text-center">
                           <p className="text-body text-foreground">
@@ -491,13 +494,13 @@ const Dashboard = () => {
                     </ListaAgrupada>
 
                     {pronto.length > 0 && (
-                      <ListaAgrupada titulo="Pronto" descripcion="Lo que viene después de hoy">
+                      <ListaAgrupada titulo="Pronto" cuenta={pronto.length}>
                         {pronto.slice(0, 6).map(renglon)}
                       </ListaAgrupada>
                     )}
 
                     {sinFecha.length > 0 && (
-                      <ListaAgrupada titulo="Sin fecha" descripcion="Ponles una para que aparezcan en el día que toca">
+                      <ListaAgrupada titulo="Sin fecha" cuenta={sinFecha.length}>
                         {sinFecha.slice(0, 5).map(renglon)}
                       </ListaAgrupada>
                     )}
@@ -550,6 +553,7 @@ const Dashboard = () => {
         tarea={enfoque}
         onCerrar={() => setEnfoque(null)}
         onCompletar={(id) => toggleTask(id)}
+        onTiempo={setTiempoEnfoque}
       />
     </div>
   );

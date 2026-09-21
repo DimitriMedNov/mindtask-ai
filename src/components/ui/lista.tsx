@@ -11,12 +11,18 @@ import type { ReactNode } from "react";
 export function ListaAgrupada({
   titulo,
   descripcion,
+  cuenta,
+  tono,
   acciones,
   children,
   className,
 }: {
   titulo?: string;
   descripcion?: string;
+  /** Va a la derecha del encabezado, alineado con el borde del grupo. */
+  cuenta?: number;
+  /** "alerta" pinta el encabezado de rojo: se usa solo en lo vencido. */
+  tono?: "alerta";
   acciones?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -24,15 +30,30 @@ export function ListaAgrupada({
   return (
     <section className={className}>
       {(titulo || acciones) && (
-        <header className="mb-2 flex items-end justify-between gap-3 px-1">
-          <div>
-            {titulo && <h2 className="display text-title3 text-foreground">{titulo}</h2>}
-            {descripcion && <p className="text-footnote text-muted-foreground">{descripcion}</p>}
+        <header className="mb-1.5 flex items-center justify-between gap-3 px-1">
+          <div className="flex items-baseline gap-2">
+            {titulo && (
+              <h2
+                className={cn(
+                  "text-footnote font-semibold",
+                  tono === "alerta" ? "text-destructive" : "text-foreground",
+                )}
+              >
+                {titulo}
+              </h2>
+            )}
+            {descripcion && <p className="text-caption text-muted-foreground">{descripcion}</p>}
           </div>
-          {acciones}
+          <div className="flex items-center gap-2">
+            {acciones}
+            {typeof cuenta === "number" && (
+              <span className="tabular text-footnote text-muted-foreground">{cuenta}</span>
+            )}
+          </div>
         </header>
       )}
-      <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+      {/* Sin borde: la separación la hace el fondo de la página, como en iOS */}
+      <div className="divide-y divide-border/70 overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-card)]">
         {children}
       </div>
     </section>

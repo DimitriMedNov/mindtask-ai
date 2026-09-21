@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,123 +10,115 @@ All colors MUST be HSL.
   :root {
     color-scheme: light;
 
-    /* Papel cálido en vez del gris azulado de siempre: la app se siente
-       cuaderno, no panel de control. */
-    --background: 40 30% 97%;
-    --foreground: 160 18% 9%;
+    /* Gris agrupado de iOS: la página es el fondo, las filas son las superficies */
+    --background: 240 20% 97%;
+    --foreground: 240 8% 11%;
 
-    --card: 40 40% 99%;
-    --card-foreground: 160 18% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 8% 11%;
 
-    --popover: 40 40% 99%;
-    --popover-foreground: 160 18% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 8% 11%;
 
-    /* Primario oscurecido para que el texto blanco encima llegue a 4.87:1.
-       El cian brillante de la marca vive en --brand, para piezas grandes
-       (el temporizador, los iconos) donde el mínimo es 3:1. */
-    /* Verde bosque: 6.39:1 con texto blanco encima. Es el color del enfoque
-       y el único que se usa para lo accionable. */
-    --primary: 162 62% 26%;
+    /* Azul de sistema: 5.34:1 con texto blanco encima, 5.34:1 como texto sobre blanco */
+    --primary: 211 100% 42%;
     --primary-foreground: 0 0% 100%;
-    --brand: 162 52% 38%;
+    --brand: 211 100% 42%;
     --brand-foreground: 0 0% 100%;
 
-    --secondary: 40 22% 92%;
-    --secondary-foreground: 160 18% 9%;
+    --secondary: 240 14% 94%;
+    --secondary-foreground: 240 8% 11%;
 
-    --muted: 40 22% 92%;
-    --muted-foreground: 160 8% 38%;
+    --muted: 240 14% 94%;
+    --muted-foreground: 240 6% 42%;
 
-    /* Brasa: reservada para lo vencido. Si aparece, urge. */
-    --accent: 18 78% 42%;
+    /* Rojo reservado para lo vencido: 6.28:1 sobre su propia pastilla */
+    --accent: 0 72% 38%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 18 78% 42%;
+    --destructive: 0 72% 38%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 18% 87%;
-    --input: 40 18% 87%;
-    --ring: 162 62% 30%;
+    --border: 240 10% 90%;
+    --input: 240 10% 90%;
+    --ring: 211 100% 42%;
 
-    --success: 162 62% 26%;
+    --success: 142 62% 30%;
     --success-foreground: 0 0% 100%;
 
-    --radius: 0.75rem;
+    --radius: 0.875rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(162 62% 26%), hsl(162 52% 38%));
-    --gradient-accent: linear-gradient(135deg, hsl(18 78% 42%), hsl(18 78% 52%));
-    --shadow-elegant: 0 10px 40px -12px hsl(162 62% 20% / 0.22);
-    --shadow-card: 0 1px 2px hsl(160 18% 9% / 0.05), 0 8px 24px -16px hsl(160 18% 9% / 0.22);
+    --gradient-primary: linear-gradient(135deg, hsl(211 100% 42%), hsl(211 100% 52%));
+    --gradient-accent: linear-gradient(135deg, hsl(0 72% 38%), hsl(0 72% 48%));
+    --shadow-elegant: 0 10px 40px -12px hsl(240 20% 20% / 0.18);
+    --shadow-card: 0 1px 2px hsl(240 20% 20% / 0.05), 0 8px 24px -16px hsl(240 20% 20% / 0.2);
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-    /* Movimiento: una sola curva y tres duraciones para toda la app */
     --ease: cubic-bezier(0.32, 0.72, 0, 1);
     --duration-fast: 140ms;
     --duration-base: 240ms;
     --duration-slow: 320ms;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 8% 11%;
+    --sidebar-primary: 211 100% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 14% 94%;
+    --sidebar-accent-foreground: 240 8% 11%;
+    --sidebar-border: 240 10% 90%;
+    --sidebar-ring: 211 100% 42%;
   }
 
   .dark {
     color-scheme: dark;
 
-    /* Carbón con tinte verde, no azul: el tema oscuro es el mismo mundo de noche. */
-    --background: 160 14% 7%;
-    --foreground: 40 18% 94%;
+    --background: 240 10% 7%;
+    --foreground: 240 12% 95%;
 
-    --card: 162 12% 11%;
-    --card-foreground: 40 18% 94%;
+    --card: 240 8% 12%;
+    --card-foreground: 240 12% 95%;
 
-    --popover: 162 12% 11%;
-    --popover-foreground: 40 18% 94%;
+    --popover: 240 8% 12%;
+    --popover-foreground: 240 12% 95%;
 
-    /* En oscuro se invierte: cian claro con texto tinta encima (10.98:1) */
-    /* Verde menta con texto tinta encima: 10.51:1 */
-    --primary: 162 58% 66%;
-    --primary-foreground: 160 18% 9%;
-    --brand: 162 58% 66%;
-    --brand-foreground: 160 18% 9%;
+    /* En oscuro el azul sube de luminancia: 6.63:1 sobre la tarjeta */
+    --primary: 211 100% 66%;
+    --primary-foreground: 240 10% 7%;
+    --brand: 211 100% 66%;
+    --brand-foreground: 240 10% 7%;
 
-    --secondary: 162 10% 17%;
-    --secondary-foreground: 40 18% 94%;
+    --secondary: 240 7% 18%;
+    --secondary-foreground: 240 12% 95%;
 
-    --muted: 162 10% 17%;
-    --muted-foreground: 150 8% 65%;
+    --muted: 240 7% 18%;
+    --muted-foreground: 240 5% 66%;
 
-    --accent: 18 82% 62%;
-    --accent-foreground: 160 18% 9%;
+    --accent: 0 84% 68%;
+    --accent-foreground: 240 10% 7%;
 
-    --destructive: 18 82% 62%;
-    --destructive-foreground: 160 18% 9%;
+    --destructive: 0 84% 68%;
+    --destructive-foreground: 240 10% 7%;
 
-    --border: 162 9% 20%;
-    --input: 162 9% 20%;
-    --ring: 162 58% 66%;
+    --border: 240 6% 20%;
+    --input: 240 6% 20%;
+    --ring: 211 100% 66%;
 
-    --success: 162 58% 60%;
-    --success-foreground: 160 18% 9%;
+    --success: 142 58% 60%;
+    --success-foreground: 240 10% 7%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(162 58% 52%), hsl(162 58% 70%));
-    --gradient-accent: linear-gradient(135deg, hsl(18 82% 55%), hsl(18 82% 68%));
+    --gradient-primary: linear-gradient(135deg, hsl(211 100% 56%), hsl(211 100% 70%));
+    --gradient-accent: linear-gradient(135deg, hsl(0 84% 58%), hsl(0 84% 70%));
     --shadow-elegant: 0 10px 40px -12px hsl(0 0% 0% / 0.5);
     --shadow-card: 0 1px 2px hsl(0 0% 0% / 0.4), 0 8px 24px -16px hsl(0 0% 0% / 0.6);
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 240 8% 12%;
+    --sidebar-foreground: 240 12% 95%;
+    --sidebar-primary: 211 100% 66%;
+    --sidebar-primary-foreground: 240 10% 7%;
+    --sidebar-accent: 240 7% 18%;
+    --sidebar-accent-foreground: 240 12% 95%;
+    --sidebar-border: 240 6% 20%;
+    --sidebar-ring: 211 100% 66%;
   }
 }
 
@@ -139,22 +129,22 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* La del sistema: en una Mac esto es SF Pro, que es lo que dibuja el mockup */
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
     font-feature-settings: "cv11", "ss01";
   }
 
   /* Los números de estadísticas y del temporizador se alinean en columna */
   .tabular {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    font-feature-settings: "tnum";
   }
 
   /* Títulos con una grotesca de carácter; el cuerpo se queda neutro para leer */
   .display {
-    font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.022em;
   }
 
   /* Quien pidió menos movimiento en su sistema no ve animaciones */

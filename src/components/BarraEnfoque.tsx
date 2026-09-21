@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play, X } from "lucide-react";
+import { Check, Pause, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -19,10 +19,13 @@ export function BarraEnfoque({
   tarea,
   onCerrar,
   onCompletar,
+  onTiempo,
 }: {
   tarea: { id: string; title: string } | null;
   onCerrar: () => void;
   onCompletar: (id: string) => void;
+  /** Publica el tiempo restante para que la fila enfocada muestre el mismo reloj. */
+  onTiempo?: (texto: string) => void;
 }) {
   const [restante, setRestante] = useState(MINUTOS_TRABAJO * 60);
   const [corriendo, setCorriendo] = useState(true);
@@ -63,19 +66,25 @@ export function BarraEnfoque({
     return () => clearInterval(id);
   }, [tarea, corriendo, descanso]);
 
+  // El reloj se comparte con la fila enfocada, para que digan lo mismo.
+  useEffect(() => {
+    onTiempo?.(tarea ? `${Math.floor(restante / 60)}:${(restante % 60).toString().padStart(2, "0")}` : "");
+  }, [restante, tarea, onTiempo]);
+
   if (!tarea) return null;
 
   const total = (descanso ? MINUTOS_DESCANSO : MINUTOS_TRABAJO) * 60;
   const avance = 1 - restante / total;
   const minutos = Math.floor(restante / 60);
   const segundos = restante % 60;
+  const reloj = `${minutos}:${segundos.toString().padStart(2, "0")}`;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center p-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center p-5">
       <div
         className={cn(
-          "pointer-events-auto relative w-full max-w-md overflow-hidden rounded-3xl border border-border/60",
-          "bg-card/80 shadow-[0_12px_40px_-12px_rgb(0_0_0/0.45)] backdrop-blur-2xl",
+          "pointer-events-auto relative flex w-full max-w-xl items-center gap-4 overflow-hidden rounded-[22px]",
+          "bg-card/85 px-5 py-3.5 shadow-[0_16px_50px_-16px_rgb(0_0_0/0.45)] backdrop-blur-2xl",
           "animate-in slide-in-from-bottom-4 duration-300",
         )}
       >
@@ -84,48 +93,60 @@ export function BarraEnfoque({
           aria-hidden="true"
           className={cn(
             "absolute inset-y-0 left-0 transition-[width] duration-1000 ease-linear",
-            descanso ? "bg-accent/15" : "bg-primary/12",
+            descanso ? "bg-accent/10" : "bg-primary/10",
           )}
           style={{ width: `${avance * 100}%` }}
         />
 
-        <div className="relative flex items-center gap-3 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-caption uppercase tracking-wide text-muted-foreground">
-              {descanso ? "Descanso" : "Enfocado en"}
-            </p>
-            <p className="truncate text-callout font-medium text-foreground">{tarea.title}</p>
-          </div>
+        <span
+          aria-hidden="true"
+          className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-[2.5px] border-primary/30 border-t-primary"
+          style={{ animation: "spin 3s linear infinite" }}
+        />
 
-          <span className="tabular text-title2 font-semibold text-foreground">
-            {minutos}:{segundos.toString().padStart(2, "0")}
-          </span>
+        <div className="relative min-w-0 flex-1">
+          <p className="text-caption uppercase tracking-[0.08em] text-muted-foreground">
+            {descanso ? "Descanso" : "Enfocado en"}
+          </p>
+          <p className="truncate text-callout font-semibold text-foreground">{tarea.title}</p>
+        </div>
 
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCorriendo((v) => !v)}
-              aria-label={corriendo ? "Pausar" : "Continuar"}
-            >
-              {corriendo ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onCompletar(tarea.id);
-                onCerrar();
-              }}
-            >
-              Listo
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onCerrar} aria-label="Salir del enfoque">
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+        <span className="tabular relative text-title2 font-semibold text-foreground">{reloj}</span>
+
+        <div className="relative flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => setCorriendo((v) => !v)}
+            aria-label={corriendo ? "Pausar" : "Continuar"}
+            className="h-9 w-9 rounded-full"
+          >
+            {corriendo ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </Button>
+          <Button
+            size="icon"
+            onClick={() => {
+              onCompletar(tarea.id);
+              onCerrar();
+            }}
+            aria-label="Marcar como hecha"
+            title="Marcar como hecha"
+            className="h-9 w-9 rounded-full"
+          >
+            <Check className="h-4 w-4" strokeWidth={3} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCerrar}
+            aria-label="Salir del enfoque"
+            className="h-9 w-9 rounded-full text-muted-foreground"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>
   );
+
 }
