@@ -46,13 +46,22 @@ Two commands. No Docker, no database server, no account:
 
 ```bash
 npm install
-npm run dev
+npm run app        # la app de escritorio; npm run dev abre la versión web
 ```
+
+`npm run app:build` produces a real Mac app — `MindTask.app` and a `.dmg` — so it
+lives in the Dock instead of a browser tab. That matters for what this is: an app
+that claims to run on your machine shouldn't need a dev server and a localhost
+URL to open.
 
 The database is [PGlite](https://pglite.dev) — the same Postgres, compiled to
 WebAssembly and running inside the app, stored on your machine. Real SQL, real
 types, no server to start. There is no login either: it's your computer, so what
 keeps your tasks private is the operating system, not a row-level policy.
+
+The desktop shell is [Tauri](https://tauri.app), which needs Rust
+(`rustup`) to build. The web version keeps working; the packaged app is the same
+interface in its own window.
 
 For the AI features, point the app at a provider (all optional — without one the
 app works and only the AI parts stand down):
@@ -60,7 +69,7 @@ app works and only the AI parts stand down):
 ```bash
 cp .env.example .env
 ollama pull llama3.2
-launchctl setenv OLLAMA_ORIGINS "*"   # let the app's origin reach Ollama, then restart it
+launchctl setenv OLLAMA_ORIGINS "*"   # let the app reach Ollama (also needed for tauri://localhost), then restart it
 ```
 
 > npm is the package manager here. The repo used to carry a stale `bun.lockb`
@@ -183,13 +192,14 @@ it was fixed.
 
 ## What's missing
 
-- No desktop packaging yet. It runs in a browser tab, which contradicts the rest
-  of the idea; Tauri is the next step.
 - No evaluation set for transcription accuracy, so the quality claims about
   Whisper models are anecdotal. The interpreter is measured; Whisper is not.
 - No recurring tasks and no search — both start to matter past a hundred tasks.
-- The database lives in the browser's storage. Exporting works (`exportar()` in
+- The database lives in the webview's storage. Exporting works (`exportar()` in
   the data layer) but there is no button for it yet.
+- The app isn't signed or notarized, so macOS will warn the first time it opens.
+- No global shortcut yet. Capturing a task without leaving the app you're in is
+  the whole point of having it on the desktop.
 
 ---
 

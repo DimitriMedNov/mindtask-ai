@@ -30,3 +30,7 @@ dist-ssr
 supabase/functions/.env
 supabase/.branches
 supabase/.temp
+
+# Tauri
+src-tauri/target
+src-tauri/gen
