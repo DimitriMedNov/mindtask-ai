@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { TaskCard, type Task } from "@/components/TaskCard";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { AIAssistant } from "@/components/AIAssistant";
@@ -26,12 +25,8 @@ const aTextoFecha = (fecha?: Date) =>
     : undefined;
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
-  const [showAdminView, setShowAdminView] = useState(false);
   // Se abre el espacio de las sugerencias al pedirlas, no cuando llegan: así la
   // lista no salta debajo del usuario a los 30 segundos.
   const [sugerenciasCargando, setSugerenciasCargando] = useState(false);
@@ -220,11 +215,6 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center gap-1">
-            {userRole === 'admin' && (
-              <Button variant="ghost" size="sm" onClick={() => setShowAdminView(!showAdminView)}>
-                {showAdminView ? "Mis tareas" : "Admin"}
-              </Button>
-            )}
             <Button variant="ghost" size="icon" onClick={() => setDictando(true)} aria-label="Dictar una tarea">
               <Mic className="h-5 w-5" />
             </Button>
@@ -234,12 +224,7 @@ const Dashboard = () => {
       </header>
 
       <main className="mx-auto w-full max-w-[1400px] px-6">
-        {userRole === 'admin' && showAdminView ? (
-          <div className="py-8">
-            <AdminDashboard />
-          </div>
-        ) : (
-          <>
+        <>
             {/* Título grande, como el de una pantalla de iOS antes de hacer scroll */}
             <section className="pb-6 pt-10">
               <p className="text-footnote text-muted-foreground">{fechaLarga()}</p>
@@ -387,8 +372,7 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-          </>
-        )}
+        </>
       </main>
 
       <VoiceCapture abierto={dictando} onOpenChange={setDictando} onCrear={addTask} />

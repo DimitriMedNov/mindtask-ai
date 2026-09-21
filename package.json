@@ -14,7 +14,8 @@
     "medir-interprete": "vite-node scripts/medir-interprete.ts",
     "app": "tauri dev",
     "app:build": "tauri build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

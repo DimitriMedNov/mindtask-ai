@@ -21,6 +21,9 @@ jobs:
       - name: Linter
         run: npm run lint
 
+      - name: Tipos
+        run: npm run typecheck
+
       - name: Pruebas
         run: npm test
 

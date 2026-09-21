@@ -99,7 +99,8 @@ export type AIConfig = {
 };
 
 /** Aplica AI_STT_BASE_URL y AI_STT_API_KEY sobre la configuración ya elegida. */
-function conSTT(cfg: Omit<AIConfig, "sttBaseUrl" | "sttApiKey">): AIConfig {
+// sttFormat también sale de aquí, así que quien llama no tiene que pasarlo.
+function conSTT(cfg: Omit<AIConfig, "sttBaseUrl" | "sttApiKey" | "sttFormat">): AIConfig {
   return {
     ...cfg,
     sttBaseUrl: (leerVariable("AI_STT_BASE_URL") ?? cfg.baseUrl).replace(/\/+$/, ""),

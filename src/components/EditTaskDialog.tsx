@@ -94,7 +94,7 @@ export const EditTaskDialog = ({ task, onEditTask }: EditTaskDialogProps) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-priority">Prioridad</Label>
-              <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
+              <Select value={priority} onValueChange={(value) => setPriority(value as Task["priority"])}>
                 <SelectTrigger id="edit-priority">
                   <SelectValue />
                 </SelectTrigger>

@@ -38,7 +38,7 @@ export const AIAssistant = ({ tasks, onSuggest, onLoadingChange }: AIAssistantPr
       const suggestions = parseSuggestions(texto);
 
       if (suggestions.length > 0) {
-        onSuggest(suggestions.map((s: { title: string; priority: Task["priority"]; category: string }) => ({
+        onSuggest(suggestions.map((s: { title: string; description?: string; priority: Task["priority"]; category: string }) => ({
           ...s,
           description: s.description || `Sugerencia basada en tus tareas actuales`
         })));
