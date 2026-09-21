@@ -27,7 +27,9 @@ const PRIORIDAD_BAJA = /\b(cuando pueda|sin prisa|sin apuro|no urge|prioridad ba
 const CATEGORIAS: Array<[RegExp, string]> = [
   [/\b(junta|reunión|reunion|cliente|proveedor|reporte|factura|correo|oficina|trabajo|proyecto)\b/i, "Trabajo"],
   [/\b(doctor|dentista|médico|medico|cita médica|gimnasio|correr|caminar|medicina|salud)\b/i, "Salud"],
-  [/\b(estudiar|examen|tarea|curso|clase|leer|escuela|universidad)\b/i, "Estudio"],
+  // "tarea" no aparece aquí a propósito: en esta app es la palabra del objeto,
+  // no una señal de escuela, y "crear tarea comprar café" acababa en Estudio.
+  [/\b(estudiar|examen|curso|clase|leer|escuela|universidad)\b/i, "Estudio"],
 ];
 
 /** Frases de arranque que la gente dice por costumbre y no son parte de la tarea. */
@@ -49,7 +51,10 @@ export function interpretarDictado(texto: string, hoy = new Date()): Omit<Task, 
     titulo = titulo.replace(PRIORIDAD_ALTA, " ").replace(PRIORIDAD_BAJA, " ").replace(/\s{2,}/g, " ").trim();
   }
 
-  const category = CATEGORIAS.find(([patron]) => patron.test(texto))?.[1] ?? "Personal";
+  // Sobre el título limpio: la muletilla del arranque no debe influir.
+  const category = CATEGORIAS.find(([patron]) => patron.test(titulo))?.[1] ?? "Personal";
+
+  titulo = limpiarBordes(titulo);
 
   return {
     title: mayusculaInicial(titulo) || "Tarea dictada",
@@ -80,6 +85,19 @@ function buscarFecha(texto: string, hoy: Date): { fecha?: Date; expresion?: RegE
   }
 
   return {};
+}
+
+/**
+ * Quitar una palabra de en medio deja basura: "revisar el reporte, es importante"
+ * menos "importante" queda como "revisar el reporte , es". Esto recorta comas
+ * sueltas, espacios dobles y conectores que se quedaron sin su complemento.
+ */
+function limpiarBordes(texto: string): string {
+  return texto
+    .replace(/\s+([,;.])/g, "$1")
+    .replace(/[\s,;]+(es|era|y|que|de|para|porque)?[\s,;.]*$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function mayusculaInicial(texto: string): string {

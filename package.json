@@ -12,7 +12,8 @@
     "test": "vitest run --project unit",
     "test:db": "vitest run --project db",
     "test:all": "vitest run",
-    "medir-ia": "vite-node scripts/medir-ia.ts"
+    "medir-ia": "vite-node scripts/medir-ia.ts",
+    "medir-interprete": "vite-node scripts/medir-interprete.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

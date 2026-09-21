@@ -1,0 +1,181 @@
+{
+  "descripcion": "Conjunto de evaluación del intérprete de frases. Cada caso es algo que alguien diría de verdad, con lo que debería entenderse. 'dias' es la distancia en días desde hoy hasta la fecha límite; null significa que la frase no lleva fecha.",
+  "referencia": "martes",
+  "casos": [
+    {
+      "frase": "comprar café",
+      "titulo": "Comprar café",
+      "dias": null,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "comprar café mañana",
+      "titulo": "Comprar café",
+      "dias": 1,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "sacar la basura hoy",
+      "titulo": "Sacar la basura",
+      "dias": 0,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "recoger el paquete pasado mañana",
+      "titulo": "Recoger el paquete",
+      "dias": 2,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "crear tarea comprar café",
+      "titulo": "Comprar café",
+      "dias": null,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "nueva tarea regar las plantas",
+      "titulo": "Regar las plantas",
+      "dias": null,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "recuérdame pagar la luz",
+      "titulo": "Pagar la luz",
+      "dias": null,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "anotar una tarea de llamar a mi mamá",
+      "titulo": "Llamar a mi mamá",
+      "dias": null,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "mandar el reporte urgente",
+      "titulo": "Mandar el reporte",
+      "dias": null,
+      "prioridad": "high",
+      "categoria": "Trabajo"
+    },
+    {
+      "frase": "preparar la junta con el cliente el viernes",
+      "titulo": "Preparar la junta con el cliente",
+      "dias": 3,
+      "prioridad": "medium",
+      "categoria": "Trabajo"
+    },
+    {
+      "frase": "revisar la factura del proveedor mañana",
+      "titulo": "Revisar la factura del proveedor",
+      "dias": 1,
+      "prioridad": "medium",
+      "categoria": "Trabajo"
+    },
+    {
+      "frase": "contestar el correo de recursos humanos hoy",
+      "titulo": "Contestar el correo de recursos humanos",
+      "dias": 0,
+      "prioridad": "medium",
+      "categoria": "Trabajo"
+    },
+    {
+      "frase": "sacar cita con el dentista el jueves",
+      "titulo": "Sacar cita con el dentista",
+      "dias": 2,
+      "prioridad": "medium",
+      "categoria": "Salud"
+    },
+    {
+      "frase": "correr 5 kilómetros el sábado",
+      "titulo": "Correr 5 kilómetros",
+      "dias": 4,
+      "prioridad": "medium",
+      "categoria": "Salud"
+    },
+    {
+      "frase": "comprar la medicina urgente",
+      "titulo": "Comprar la medicina",
+      "dias": null,
+      "prioridad": "high",
+      "categoria": "Salud"
+    },
+    {
+      "frase": "ir al gimnasio mañana",
+      "titulo": "Ir al gimnasio",
+      "dias": 1,
+      "prioridad": "medium",
+      "categoria": "Salud"
+    },
+    {
+      "frase": "estudiar para el examen el lunes",
+      "titulo": "Estudiar para el examen",
+      "dias": 6,
+      "prioridad": "medium",
+      "categoria": "Estudio"
+    },
+    {
+      "frase": "terminar la tarea del curso hoy",
+      "titulo": "Terminar la tarea del curso",
+      "dias": 0,
+      "prioridad": "medium",
+      "categoria": "Estudio"
+    },
+    {
+      "frase": "leer el capítulo 4 sin prisa",
+      "titulo": "Leer el capítulo 4",
+      "dias": null,
+      "prioridad": "low",
+      "categoria": "Estudio"
+    },
+    {
+      "frase": "ordenar el clóset cuando pueda",
+      "titulo": "Ordenar el clóset",
+      "dias": null,
+      "prioridad": "low",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "renovar el seguro en 3 días",
+      "titulo": "Renovar el seguro",
+      "dias": 3,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "hacer el respaldo en 7 días",
+      "titulo": "Hacer el respaldo",
+      "dias": 7,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "planear el viaje la próxima semana",
+      "titulo": "Planear el viaje",
+      "dias": 7,
+      "prioridad": "medium",
+      "categoria": "Personal"
+    },
+    {
+      "frase": "entregar el proyecto el miércoles urgente",
+      "titulo": "Entregar el proyecto",
+      "dias": 1,
+      "prioridad": "high",
+      "categoria": "Trabajo"
+    },
+    {
+      "frase": "recuérdame revisar el reporte mensual mañana, es importante",
+      "titulo": "Revisar el reporte mensual",
+      "dias": 1,
+      "prioridad": "high",
+      "categoria": "Trabajo"
+    }
+  ]
+}
