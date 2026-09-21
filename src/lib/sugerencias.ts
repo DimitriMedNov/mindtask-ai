@@ -2,7 +2,7 @@
  * Prompt y parseo de ai-task-suggestions, separados de la función para poder
  * probarlos y para que scripts/medir-ia.ts mida exactamente la misma petición.
  */
-import { AIError, type ChatMessage } from "./ai.ts";
+import { AIError, type ChatMessage } from "./ia";
 
 export type Suggestion = { title: string; priority: "high" | "medium" | "low"; category: string };
 

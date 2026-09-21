@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { setEnv } from "../setup-deno";
+import { setEnv } from "../setup-env";
 import {
   AIError,
   TIMEOUT_MESSAGE,
@@ -12,7 +12,7 @@ import {
   type AIConfig,
   type ChatMessage,
   type Usage,
-} from "../../supabase/functions/_shared/ai";
+} from "../../src/lib/ia";
 
 const MENSAJES: ChatMessage[] = [
   { role: "system", content: "Eres un asistente." },

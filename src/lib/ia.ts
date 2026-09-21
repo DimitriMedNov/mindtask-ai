@@ -16,13 +16,31 @@
  *                 /inference en vez de la ruta de OpenAI, así que necesita su
  *                 propio trato aunque el resto sea igual
  *
- * Nota sobre modelos locales: estas funciones corren en los servidores de
- * Supabase, así que no alcanzan un "localhost" de tu máquina. Para usar Ollama
- * hay que correr el proyecto en local (`supabase functions serve`) o exponer el
- * servidor con un túnel y poner esa URL en AI_BASE_URL.
+ * Modelos locales: esta capa corre en la máquina del usuario, así que alcanza
+ * sin problema un servidor en localhost. Ollama necesita permitir el origen de
+ * la app (OLLAMA_ORIGINS), porque el navegador aplica sus reglas de origen.
  */
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+
+/**
+ * De dónde sale la configuración.
+ *
+ * Antes esto vivía en una Edge Function y leía Deno.env. Ahora corre en la app,
+ * así que lee las variables de Vite —las que empiezan con VITE_— y, en las
+ * pruebas, las del proceso. Un solo lugar para que el resto del archivo no
+ * sepa dónde está corriendo.
+ */
+export function leerVariable(nombre: string): string | undefined {
+  // El proceso manda sobre Vite: en el navegador no existe, y en las pruebas
+  // así cada caso pone su propia configuración sin que se cuele el .env real.
+  const proceso = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+  const delProceso = proceso?.env?.[`VITE_${nombre}`] ?? proceso?.env?.[nombre];
+  if (delProceso) return delProceso;
+
+  const deVite = (import.meta as { env?: Record<string, string | undefined> }).env;
+  return deVite?.[`VITE_${nombre}`] ?? deVite?.[nombre];
+}
 
 type Provider = "ollama" | "openai" | "anthropic" | "lovable" | "custom";
 
@@ -84,9 +102,9 @@ export type AIConfig = {
 function conSTT(cfg: Omit<AIConfig, "sttBaseUrl" | "sttApiKey">): AIConfig {
   return {
     ...cfg,
-    sttBaseUrl: (Deno.env.get("AI_STT_BASE_URL") ?? cfg.baseUrl).replace(/\/+$/, ""),
-    sttApiKey: Deno.env.get("AI_STT_API_KEY") ?? cfg.apiKey,
-    sttFormat: (Deno.env.get("AI_STT_FORMAT") ?? "openai").trim().toLowerCase() === "whisper-cpp"
+    sttBaseUrl: (leerVariable("AI_STT_BASE_URL") ?? cfg.baseUrl).replace(/\/+$/, ""),
+    sttApiKey: leerVariable("AI_STT_API_KEY") ?? cfg.apiKey,
+    sttFormat: (leerVariable("AI_STT_FORMAT") ?? "openai").trim().toLowerCase() === "whisper-cpp"
       ? "whisper-cpp"
       : "openai",
   };
@@ -98,17 +116,17 @@ function conSTT(cfg: Omit<AIConfig, "sttBaseUrl" | "sttApiKey">): AIConfig {
  * tronar.
  */
 export function readConfig(): AIConfig | null {
-  const raw = (Deno.env.get("AI_PROVIDER") ?? "").trim().toLowerCase();
+  const raw = (leerVariable("AI_PROVIDER") ?? "").trim().toLowerCase();
 
   // Compatibilidad: los proyectos creados en Lovable solo traen LOVABLE_API_KEY
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const lovableKey = leerVariable("LOVABLE_API_KEY");
   if (!raw && lovableKey) {
     return conSTT({
       provider: "lovable",
       baseUrl: DEFAULTS.lovable.baseUrl,
       apiKey: lovableKey,
-      model: Deno.env.get("AI_MODEL") ?? DEFAULTS.lovable.model,
-      sttModel: Deno.env.get("AI_STT_MODEL") ?? DEFAULTS.lovable.sttModel,
+      model: leerVariable("AI_MODEL") ?? DEFAULTS.lovable.model,
+      sttModel: leerVariable("AI_STT_MODEL") ?? DEFAULTS.lovable.sttModel,
     });
   }
 
@@ -119,8 +137,8 @@ export function readConfig(): AIConfig | null {
 
   const provider = raw as Provider;
   const d = DEFAULTS[provider];
-  const baseUrl = (Deno.env.get("AI_BASE_URL") ?? d.baseUrl).replace(/\/+$/, "");
-  const apiKey = Deno.env.get("AI_API_KEY") ?? Deno.env.get("LOVABLE_API_KEY") ?? "";
+  const baseUrl = (leerVariable("AI_BASE_URL") ?? d.baseUrl).replace(/\/+$/, "");
+  const apiKey = leerVariable("AI_API_KEY") ?? leerVariable("LOVABLE_API_KEY") ?? "";
 
   if (!baseUrl) throw new AIError("Falta AI_BASE_URL para el proveedor custom.", 500);
   if (d.needsKey && !apiKey) throw new AIError(`Falta AI_API_KEY para el proveedor ${provider}.`, 500);
@@ -129,8 +147,8 @@ export function readConfig(): AIConfig | null {
     provider,
     baseUrl,
     apiKey,
-    model: Deno.env.get("AI_MODEL") ?? d.model,
-    sttModel: Deno.env.get("AI_STT_MODEL") ?? d.sttModel,
+    model: leerVariable("AI_MODEL") ?? d.model,
+    sttModel: leerVariable("AI_STT_MODEL") ?? d.sttModel,
   });
 }
 
@@ -424,51 +442,21 @@ export function transcribe(cfg: AIConfig, audio: Blob, filename = "audio.webm", 
 }
 
 /**
- * Guarda cada llamada en la tabla ai_usage con la service role (los usuarios no
- * pueden escribir ahí). Usa la API REST directo para no amarrar esta capa al
- * cliente de Supabase.
+ * Guarda cada llamada en la base local. Un fallo al registrar nunca rompe la
+ * respuesta: medir es útil, pero no a costa de la función que el usuario pidió.
  */
-export function usageRecorder(functionName: string, userId: string | null) {
-  const url = Deno.env.get("SUPABASE_URL");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+export function usageRecorder(funcion: string) {
   return async (u: Usage) => {
-    if (!url || !key) return;
-    const res = await fetch(`${url}/rest/v1/ai_usage`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        function_name: functionName,
-        kind: u.kind,
-        provider: u.provider,
-        model: u.model,
-        input_tokens: u.inputTokens,
-        output_tokens: u.outputTokens,
-        duration_ms: u.durationMs,
-        status: u.status,
-        attempts: u.attempts,
-      }),
+    const { registrarUsoIA } = await import("./datos");
+    await registrarUsoIA({
+      funcion,
+      proveedor: u.provider,
+      modelo: u.model,
+      tokensIn: u.inputTokens,
+      tokensOut: u.outputTokens,
+      duracionMs: u.durationMs,
+      estado: u.status,
+      intentos: u.attempts,
     });
-    if (!res.ok) throw new Error(`ai_usage respondió ${res.status}: ${await res.text()}`);
   };
 }
-
-/** Respuesta JSON de error con el mismo formato en todas las funciones de IA. */
-export function errorResponse(error: unknown, headers: Record<string, string>) {
-  const status = error instanceof AIError ? error.status : 500;
-  const message = error instanceof Error ? error.message : "Error desconocido";
-  return new Response(JSON.stringify({ error: message }), {
-    status,
-    headers: { ...headers, "Content-Type": "application/json" },
-  });
-}
-
-export const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};

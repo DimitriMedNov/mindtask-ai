@@ -3,7 +3,7 @@ import { Mic, Square, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { canTranscribe, readConfig, transcribe, usageRecorder, AIError } from "@/lib/ia";
 import { describeAIError } from "@/lib/aiErrors";
 import { grabarWav, type Grabacion } from "@/lib/grabarWav";
 import { interpretarDictado } from "@/lib/dictado";
@@ -64,13 +64,15 @@ export function VoiceCapture({ abierto, onOpenChange, onCrear }: VoiceCapturePro
 
     try {
       const audio = await grabacion.detener();
-      const base64 = await blobABase64(audio);
-      const { data, error: fallo } = await supabase.functions.invoke("voice-to-text", {
-        body: { audio: base64, mimeType: "audio/wav" },
-      });
-      if (fallo) throw fallo;
+      const cfg = readConfig();
+      if (!canTranscribe(cfg)) {
+        throw new AIError(
+          "El proveedor configurado no transcribe audio. Levanta whisper.cpp y define VITE_AI_STT_BASE_URL.",
+          503,
+        );
+      }
 
-      const dicho = (data?.text ?? "").trim();
+      const dicho = (await transcribe(cfg!, audio, "audio.wav", { onUsage: usageRecorder("dictado") })).trim();
       if (!dicho) {
         setError("No se entendió nada. Intenta otra vez, más cerca del micrófono.");
         setEstado("error");
@@ -79,7 +81,7 @@ export function VoiceCapture({ abierto, onOpenChange, onCrear }: VoiceCapturePro
       setTexto(dicho);
       setEstado("listo");
     } catch (e) {
-      setError((await describeAIError(e)).message);
+      setError(describeAIError(e).message);
       setEstado("error");
     }
   };
@@ -97,11 +99,10 @@ export function VoiceCapture({ abierto, onOpenChange, onCrear }: VoiceCapturePro
 
       enVueloRef.current = true;
       try {
-        const base64 = await blobABase64(grabacion.instantanea());
-        const { data } = await supabase.functions.invoke("voice-to-text", {
-          body: { audio: base64, mimeType: "audio/wav", parcial: true },
-        });
-        const dicho = (data?.text ?? "").trim();
+        const cfg = readConfig();
+        if (!canTranscribe(cfg)) return;
+        // Los avances no se registran: son decenas por dictado y ensuciarían la medición.
+        const dicho = (await transcribe(cfg!, grabacion.instantanea(), "audio.wav")).trim();
         // Puede haber terminado de grabar mientras esto iba en camino.
         if (dicho && grabacionRef.current) setAvance(dicho);
       } catch {

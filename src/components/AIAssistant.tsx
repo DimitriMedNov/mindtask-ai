@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { chat, readConfig, usageRecorder } from "@/lib/ia";
+import { buildMessages, parseSuggestions } from "@/lib/sugerencias";
 import { toast } from "sonner";
 import { describeAIError, showAIErrorToast } from "@/lib/aiErrors";
+import { AIError } from "@/lib/ia";
 import type { Task } from "./TaskCard";
 
 interface AIAssistantProps {
@@ -29,23 +31,23 @@ export const AIAssistant = ({ tasks, onSuggest, onLoadingChange }: AIAssistantPr
   const getSuggestions = async () => {
     cambiarCarga(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-task-suggestions', {
-        body: { userTasks: tasks }
-      });
+      const cfg = readConfig();
+      if (!cfg) throw new AIError("La IA no está configurada. Define VITE_AI_PROVIDER y su modelo.", 503);
 
-      if (error) throw error;
+      const texto = await chat(cfg, buildMessages(tasks), { onUsage: usageRecorder("sugerencias") });
+      const suggestions = parseSuggestions(texto);
 
-      if (data.suggestions && data.suggestions.length > 0) {
-        onSuggest(data.suggestions.map((s: any) => ({
+      if (suggestions.length > 0) {
+        onSuggest(suggestions.map((s: { title: string; priority: Task["priority"]; category: string }) => ({
           ...s,
           description: s.description || `Sugerencia basada en tus tareas actuales`
         })));
-        toast.success("¡Sugerencias generadas!", {
-          description: `Revisa ${data.suggestions.length} sugerencias de IA`
+        toast.success("Listas tus sugerencias", {
+          description: `${suggestions.length} ideas, con ${cfg.model}`,
         });
       }
     } catch (error) {
-      showAIErrorToast(await describeAIError(error));
+      showAIErrorToast(describeAIError(error));
     } finally {
       cambiarCarga(false);
     }

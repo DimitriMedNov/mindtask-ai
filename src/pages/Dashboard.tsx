@@ -6,17 +6,16 @@ import { AIAssistant } from "@/components/AIAssistant";
 import { AISuggestions } from "@/components/AISuggestions";
 import { BarraEnfoque } from "@/components/BarraEnfoque";
 import { VoiceCapture } from "@/components/VoiceCapture";
-import { AdminDashboard } from "@/components/AdminDashboard";
 import { CalendarView } from "@/components/CalendarView";
 import { Button } from "@/components/ui/button";
-import { LogOut, Shield, Mic, X } from "lucide-react";
+import { Mic, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Anillo, ListaAgrupada, ListaVacia } from "@/components/ui/lista";
 import { Logotipo } from "@/components/Marca";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { actualizarTarea, borrarTarea, crearTarea, leerEstadisticas, listarTareas, sumarTareaCompletada } from "@/lib/datos";
 import { esParaHoy, fechaLarga, fechaLocal } from "@/lib/fechas";
 import { isSameDay } from "date-fns";
 
@@ -55,235 +54,88 @@ const Dashboard = () => {
     completed: false;
   }>>([]);
 
+  // Sin sesión ni usuarios: la base vive en esta máquina y es de quien la abre.
   useEffect(() => {
-    // Check auth status
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate('/auth');
-        return;
-      }
-      setUser(session?.user ?? null);
+    void (async () => {
+      await Promise.all([cargarTareas(), cargarEstadisticas()]);
       setLoading(false);
-    });
+    })();
+  }, []);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        navigate('/auth');
-        return;
-      }
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
-    if (user) {
-      loadTasks();
-      loadUserRole();
-      loadStats();
-    }
-  }, [user]);
-
-  /** Nivel y racha viven en una sola línea del encabezado: son premio, no protagonista. */
-  const loadStats = async () => {
-    const { data } = await supabase
-      .from('user_stats')
-      .select('level, streak_days')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (data) {
-      setNivel(data.level ?? 1);
-      setRacha(data.streak_days ?? 0);
+  const cargarTareas = async () => {
+    try {
+      setTasks(await listarTareas());
+    } catch (error) {
+      console.error("No se pudieron leer las tareas:", error);
+      toast.error("No se pudieron leer las tareas");
     }
   };
 
-  const loadUserRole = async () => {
+  const cargarEstadisticas = async () => {
     try {
-      // Un usuario puede tener más de un rol: el disparador de alta le pone
-      // "user" y un administrador puede agregarle "admin" encima. Pedir uno solo
-      // con maybeSingle() reventaba y dejaba a los administradores como usuarios
-      // normales; aquí se traen todos y gana el más alto.
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      const roles = (data ?? []).map((r) => r.role);
-      setUserRole(roles.includes('admin') ? 'admin' : 'user');
+      const stats = await leerEstadisticas();
+      setNivel(stats.level);
+      setRacha(stats.streak_days);
     } catch (error) {
-      console.error('Error loading user role:', error);
-      setUserRole('user');
-    }
-  };
-
-  const loadTasks = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setTasks(data.map(task => ({
-        id: task.id,
-        title: task.title,
-        description: task.description || '',
-        completed: task.completed,
-        priority: task.priority as "high" | "medium" | "low",
-        category: task.category,
-        createdAt: new Date(task.created_at),
-        startDate: fechaLocal(task.start_date),
-        dueDate: fechaLocal(task.due_date),
-      })));
-    } catch (error) {
-      console.error('Error loading tasks:', error);
+      console.error("No se pudieron leer las estadísticas:", error);
     }
   };
 
   const addTask = async (taskData: Omit<Task, "id" | "createdAt">) => {
     try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert({
-          user_id: user.id,
-          title: taskData.title,
-          description: taskData.description,
-          priority: taskData.priority,
-          category: taskData.category,
-          completed: taskData.completed
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const newTask: Task = {
-        id: data.id,
-        title: data.title,
-        description: data.description || '',
-        completed: data.completed,
-        priority: data.priority as "high" | "medium" | "low",
-        category: data.category,
-        createdAt: new Date(data.created_at),
-        startDate: fechaLocal(data.start_date),
-        dueDate: fechaLocal(data.due_date),
-      };
-
-      setTasks([newTask, ...tasks]);
-      await updateUserStats('add');
-      toast.success("Tarea creada exitosamente", {
-        description: `"${newTask.title}" ha sido añadida a tu lista.`
-      });
+      const nueva = await crearTarea(taskData);
+      setTasks((previas) => [nueva, ...previas]);
+      toast.success("Tarea creada", { description: nueva.title });
     } catch (error) {
-      console.error('Error adding task:', error);
-      toast.error("Error al crear tarea");
+      console.error("No se pudo crear la tarea:", error);
+      toast.error("No se pudo crear la tarea");
     }
   };
 
   const editTask = async (id: string, updates: Partial<Task>) => {
     try {
-      const { error } = await supabase.from('tasks').update({
-        title: updates.title,
-        description: updates.description,
-        priority: updates.priority,
-        category: updates.category,
-        start_date: aTextoFecha(updates.startDate),
-        due_date: aTextoFecha(updates.dueDate),
-      }).eq('id', id);
-
-      if (error) throw error;
-
-      setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t));
-      toast.success("Tarea actualizada", {
-        description: "Los cambios se han guardado exitosamente"
-      });
+      await actualizarTarea(id, updates);
+      setTasks((previas) => previas.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+      toast.success("Tarea actualizada");
     } catch (error) {
-      console.error('Error updating task:', error);
-      toast.error("Error al actualizar tarea");
+      console.error("No se pudo actualizar la tarea:", error);
+      toast.error("No se pudo actualizar la tarea");
     }
   };
 
   const toggleTask = async (id: string) => {
-    const task = tasks.find(t => t.id === id);
+    const task = tasks.find((t) => t.id === id);
     if (!task) return;
 
+    const completada = !task.completed;
     try {
-      const newCompleted = !task.completed;
-      const { error } = await supabase
-        .from('tasks')
-        .update({ completed: newCompleted })
-        .eq('id', id);
+      await actualizarTarea(id, { completed: completada });
+      setTasks((previas) => previas.map((t) => (t.id === id ? { ...t, completed: completada } : t)));
 
-      if (error) throw error;
-
-      setTasks(tasks.map(t => t.id === id ? { ...t, completed: newCompleted } : t));
-
-      if (newCompleted) {
-        await updateUserStats('complete');
+      if (completada) {
+        const stats = await sumarTareaCompletada();
+        const subioDeNivel = stats.level > nivel;
+        setNivel(stats.level);
+        setRacha(stats.streak_days);
+        toast.success(subioDeNivel ? `Subiste al nivel ${stats.level}` : "Hecho", {
+          description: subioDeNivel ? `${task.title} · +10 puntos` : `${task.title} · +10 puntos`,
+        });
       }
-
-      toast.success(
-        newCompleted ? "¡Tarea completada! 🎉" : "Tarea marcada como pendiente",
-        {
-          description: newCompleted 
-            ? `¡Excelente trabajo con "${task.title}"! +10 puntos`
-            : `"${task.title}" vuelve a estar pendiente.`
-        }
-      );
     } catch (error) {
-      console.error('Error toggling task:', error);
-      toast.error("Error al actualizar tarea");
+      console.error("No se pudo actualizar la tarea:", error);
+      toast.error("No se pudo actualizar la tarea");
     }
   };
 
   const deleteTask = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
     try {
-      const task = tasks.find(t => t.id === id);
-      const { error } = await supabase.from('tasks').delete().eq('id', id);
-
-      if (error) throw error;
-
-      setTasks(tasks.filter(t => t.id !== id));
-      toast.success("Tarea eliminada", {
-        description: task ? `"${task.title}" ha sido eliminada.` : "La tarea ha sido eliminada."
-      });
+      await borrarTarea(id);
+      setTasks((previas) => previas.filter((t) => t.id !== id));
+      toast.success("Tarea eliminada", { description: task?.title });
     } catch (error) {
-      console.error('Error deleting task:', error);
-      toast.error("Error al eliminar tarea");
-    }
-  };
-
-  const updateUserStats = async (action: 'add' | 'complete') => {
-    try {
-      const { data: stats } = await supabase
-        .from('user_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (stats) {
-        const updates: any = {};
-        if (action === 'complete') {
-          updates.tasks_completed = (stats.tasks_completed || 0) + 1;
-          updates.points = (stats.points || 0) + 10;
-
-          // Level up logic
-          const newLevel = Math.floor(updates.points / 100) + 1;
-          if (newLevel > stats.level) {
-            updates.level = newLevel;
-            toast.success("¡Subiste de nivel!", {
-              description: `Ahora eres nivel ${newLevel}! 🎊`
-            });
-          }
-        }
-        await supabase.from('user_stats').update(updates).eq('user_id', user.id);
-      }
-    } catch (error) {
-      console.error('Error updating stats:', error);
+      console.error("No se pudo eliminar la tarea:", error);
+      toast.error("No se pudo eliminar la tarea");
     }
   };
 
@@ -302,12 +154,6 @@ const Dashboard = () => {
 
   const handleClearSuggestions = () => {
     setAiSuggestions([]);
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-    toast.success("Sesión cerrada");
   };
 
   if (loading) {
@@ -383,9 +229,6 @@ const Dashboard = () => {
               <Mic className="h-5 w-5" />
             </Button>
             <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Cerrar sesión">
-              <LogOut className="h-5 w-5" />
-            </Button>
           </div>
         </div>
       </header>

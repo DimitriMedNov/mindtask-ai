@@ -3,10 +3,10 @@
 A personal task manager that runs on your own machine: your database, your model,
 your data. No landing page, no sign-up funnel — it opens straight into the app.
 
-The whole stack is local by default. Postgres, auth, the edge functions, the
-language model and the speech-to-text all run on localhost, so the app keeps
-working on a plane, and nothing you write or say leaves the computer unless you
-point it at a cloud provider yourself.
+The whole stack is local by default: the database runs inside the app, and the
+language model and the speech-to-text run on localhost, so it keeps working on a
+plane and nothing you write or say leaves the computer unless you point it at a
+cloud provider yourself.
 
 ![Tablero en tema claro](docs/capturas/tablero-claro.png)
 ![Tablero en tema oscuro, con un bloque de enfoque corriendo](docs/capturas/tablero-oscuro.png)
@@ -42,25 +42,25 @@ configured, and the rest of the app carries on.
 
 ## Run it
 
-You need [Docker](https://docs.docker.com/get-docker/) (Colima works),
-the [Supabase CLI](https://supabase.com/docs/guides/cli), Node 18+, and
-[Ollama](https://ollama.com) if you want the AI features.
+Two commands. No Docker, no database server, no account:
 
 ```bash
 npm install
-supabase start                 # Postgres, auth and storage on localhost
-ollama pull llama3.2           # or any model you prefer
-cp supabase/functions/.env.example supabase/functions/.env
-supabase functions serve --env-file supabase/functions/.env
 npm run dev
 ```
 
-`supabase start` applies the migrations and loads `supabase/seed.sql`, which
-creates a demo account with ten tasks, nine Pomodoro sessions and a streak
-already going:
+The database is [PGlite](https://pglite.dev) — the same Postgres, compiled to
+WebAssembly and running inside the app, stored on your machine. Real SQL, real
+types, no server to start. There is no login either: it's your computer, so what
+keeps your tasks private is the operating system, not a row-level policy.
 
-```
-demo@mindtask.local / demo123456
+For the AI features, point the app at a provider (all optional — without one the
+app works and only the AI parts stand down):
+
+```bash
+cp .env.example .env
+ollama pull llama3.2
+launchctl setenv OLLAMA_ORIGINS "*"   # let the app's origin reach Ollama, then restart it
 ```
 
 > npm is the package manager here. The repo used to carry a stale `bun.lockb`
@@ -79,28 +79,31 @@ mkdir -p ~/.whisper-models && curl -L -o ~/.whisper-models/ggml-base.bin \
 whisper-server -m ~/.whisper-models/ggml-base.bin --port 8178 -l es
 ```
 
-Then set `AI_STT_BASE_URL=http://host.docker.internal:8178` and
-`AI_STT_FORMAT=whisper-cpp`. `ggml-base` (141 MB) is enough to try it;
+Then set `VITE_AI_STT_BASE_URL=http://localhost:8178` and
+`VITE_AI_STT_FORMAT=whisper-cpp`. `ggml-base` (141 MB) is enough to try it;
 `ggml-small` (~466 MB) transcribes noticeably better in Spanish.
 
 ---
 
 ## Bring your own model
 
-Nothing in the app is tied to one AI vendor. `supabase/functions/_shared/ai.ts`
-reads the provider from the environment and speaks two wire formats —
+Nothing in the app is tied to one AI vendor. `src/lib/ia.ts` reads the provider from the environment and speaks two wire formats —
 OpenAI-compatible and Anthropic — so the same code runs against any of these:
 
-| `AI_PROVIDER` | What you need | Notes |
+| `VITE_AI_PROVIDER` | What you need | Notes |
 |---|---|---|
 | `ollama` | Ollama running locally | No API key, nothing leaves the machine |
-| `openai` | `AI_API_KEY` | Also covers voice transcription (`whisper-1`) |
-| `anthropic` | `AI_API_KEY` | Text only — Anthropic does not transcribe audio |
-| `custom` | `AI_BASE_URL` + model | Any OpenAI-compatible server (vLLM, LM Studio, a gateway) |
+| `openai` | `VITE_AI_API_KEY` | Also covers voice transcription (`whisper-1`) |
+| `anthropic` | `VITE_AI_API_KEY` | Text only — Anthropic does not transcribe audio |
+| `custom` | `VITE_AI_BASE_URL` + model | Any OpenAI-compatible server (vLLM, LM Studio, a gateway) |
 
-Transcription can point somewhere else than text generation — `AI_STT_BASE_URL`,
-`AI_STT_API_KEY` and `AI_STT_FORMAT` — which is how a local Whisper pairs with a
-hosted chat model, or the other way round.
+Transcription can point somewhere else than text generation —
+`VITE_AI_STT_BASE_URL`, `VITE_AI_STT_API_KEY` and `VITE_AI_STT_FORMAT` — which is
+how a local Whisper pairs with a hosted chat model, or the other way round.
+
+Because the app talks to the provider directly, an API key you put in `.env`
+ships in the bundle. That's fine for a local key like Ollama's (there isn't one)
+and fine for your own machine; don't publish a build carrying someone's paid key.
 
 If no provider is configured the AI endpoints answer `503` with a clear message
 and the rest of the app keeps working. Nothing crashes because a key is missing.
@@ -116,14 +119,8 @@ with the most guardrails:
   caller gets a `504` instead of a spinner that never ends.
 - **Two retries with growing waits**, and only when the provider answers `429` or
   `5xx`. A `400` is never retried, because it will fail again.
-- **Twenty calls per user per hour**, counted per function through a Postgres
-  function with a per-user lock, so twenty-five simultaneous calls let exactly
-  twenty through. Partial transcriptions — the ones that make the text appear
-  while you speak — don't spend quota; a fifteen-second sentence would eat six
-  uses otherwise.
 - **Every call is recorded** in `ai_usage` with provider, model, tokens,
-  milliseconds, status and attempts. `npm run medir-ia` turns that into medians
-  and p95.
+  milliseconds, status and attempts. `resumenUsoIA()` turns that into medians and p95.
 
 Measured on this machine:
 
@@ -135,38 +132,34 @@ Measured on this machine:
 
 ## Data model
 
-Four tables, all under Row Level Security so each person only reaches their own
-rows: `tasks`, `pomodoro_sessions`, `user_stats` and `user_roles`. Roles live in
-their own table instead of a column on the profile, so someone can hold more than
-one and permissions are checked without reading the profile.
+Four tables in the embedded Postgres: `tasks`, `pomodoro_sessions`, `user_stats`
+and `ai_usage`. No users table and no roles — a personal app with one person in
+it doesn't need to model who is allowed to see what.
 
-### Edge Functions
-
-| Function | What it does |
-|---|---|
-| `ai-task-suggestions` | Suggests three tasks from the ones you already have |
-| `voice-to-text` | Transcribes dictated audio; answers `GET` with whether dictation is available at all |
-| `assign-role` | Grants or revokes a role, admin only |
-| `get-users` | Lists users for the admin screen |
-
-Keeping these server-side is the point: the model key and the role logic stay out
-of the client bundle.
+`src/lib/datos.ts` is the whole data layer, plain SQL. `src/lib/ia.ts` is the
+whole AI layer, and both run in the app. There is no backend to deploy, and no
+Edge Functions: the previous version routed AI calls through Supabase so the key
+would stay off the client, which stops making sense once the client *is* the
+machine that owns the key.
 
 ---
 
 ## Tests
 
 ```bash
-npm test        # 57 unit tests: provider selection, wire formats, retries, timeouts, parsing, dictation
-npm run test:db # 10 tests against the local database, for the RLS policies
-npm run test:all
+npm test                  # 57 tests: provider selection, wire formats, retries, timeouts, parsing, dictation
+npm run medir-interprete  # how well the interpreter reads a sentence, over 25 real phrases
 ```
 
-The RLS tests create two fresh users without admin rights and check that neither
-can read the other's tasks — the demo account is an admin and sees everything by
-design, which would make the test pass for the wrong reason.
+The evaluation set lives in `evals/frases.json` and says what *should* be
+understood, not what the code does today. Its first run scored 84% and pointed at
+two real bugs — "crear tarea comprar café" landed in the Estudio category because
+"tarea" counted as a school word, and removing a word from the middle of a
+sentence left debris behind. Both fixed, it now reads all four fields correctly
+on all 25 phrases.
 
-GitHub Actions runs all of them on every push.
+GitHub Actions runs the tests and the evaluation on every push, with a floor of
+90%: a case that gets worse shows up there instead of in the next demo.
 
 ---
 
@@ -190,13 +183,13 @@ it was fixed.
 
 ## What's missing
 
-- The stack still needs Docker. A local-first app that requires three services to
-  start isn't local enough; moving the database into a file is the next step.
 - No desktop packaging yet. It runs in a browser tab, which contradicts the rest
-  of the idea.
+  of the idea; Tauri is the next step.
 - No evaluation set for transcription accuracy, so the quality claims about
-  Whisper models are anecdotal.
+  Whisper models are anecdotal. The interpreter is measured; Whisper is not.
 - No recurring tasks and no search — both start to matter past a hundred tasks.
+- The database lives in the browser's storage. Exporting works (`exportar()` in
+  the data layer) but there is no button for it yet.
 
 ---
 

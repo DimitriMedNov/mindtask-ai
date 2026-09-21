@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import "../setup-deno";
-import { buildMessages, parseSuggestions } from "../../supabase/functions/_shared/suggestions";
+import { buildMessages, parseSuggestions } from "../../src/lib/sugerencias";
 
 const LISTA = `[
   {"title": "Revisar el presupuesto", "priority": "high", "category": "Trabajo"},
