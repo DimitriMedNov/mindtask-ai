@@ -33,4 +33,5 @@ jobs:
       - name: Evaluación del intérprete
         run: npm run medir-interprete
         env:
-          MINIMO_ACIERTO: "90"
+          # La fracción, no el porcentaje: el script compara contra 0-1.
+          MINIMO_ACIERTO: "0.9"
