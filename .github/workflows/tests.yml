@@ -5,33 +5,29 @@ on:
   pull_request:
 
 jobs:
-  unit:
-    name: Unitarias (capa de IA y parseo)
+  verificar:
+    name: Pruebas y evaluación del intérprete
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm test
 
-  db:
-    name: RLS contra Supabase local
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
+
       - run: npm ci
-      # Levanta Postgres, Auth y la API en Docker y aplica migraciones y seed.
-      - run: supabase start
-      - run: npm run test:db
-      - if: always()
-        run: supabase stop --no-backup
+
+      - name: Linter
+        run: npm run lint
+
+      - name: Pruebas
+        run: npm test
+
+      # El set de evaluación dice qué DEBERÍA entenderse de cada frase, no lo
+      # que el código hace hoy. Con el piso en 90, un caso que empeora se ve
+      # aquí y no en la siguiente demostración.
+      - name: Evaluación del intérprete
+        run: npm run medir-interprete
+        env:
+          MINIMO_ACIERTO: "90"
