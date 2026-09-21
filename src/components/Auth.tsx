@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Marca } from "@/components/Marca";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from "lucide-react";
 export const Auth = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -62,22 +62,17 @@ export const Auth = () => {
   };
   return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="w-full max-w-md space-y-4">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate('/')}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver al inicio
-        </Button>
-        
         <Card className="w-full">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-primary">
-            MindTask AI
+          {/* Uso personal: aquí no se vende nada, solo se entra */}
+          <div className="flex justify-center pb-1">
+            <Marca className="text-primary" size={32} />
+          </div>
+          <CardTitle className="display text-center text-title1 text-foreground">
+            MindTask
           </CardTitle>
           <CardDescription className="text-center">
-            Organiza tu vida con IA, Pomodoro y gamificación
+            Tus tareas, en tu propia máquina
           </CardDescription>
         </CardHeader>
         <CardContent>

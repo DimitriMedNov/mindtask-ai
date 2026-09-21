@@ -1,8 +1,10 @@
-# MindTask AI
+# MindTask
 
-Task manager with an AI assistant, voice input and gamification.
+A personal task manager that runs on your own machine: your database, your model,
+your data. No marketing page, no sign-up funnel — it opens straight into the app.
 
-**Live demo:** https://mindtask-ai.vercel.app/
+Built for one person's daily use, which is also why the whole stack is local by
+default: Postgres, auth, the edge functions and the model all run on localhost.
 
 ## What it does
 
